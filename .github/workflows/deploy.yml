@@ -34,5 +34,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          # Keep the .nojekyll file in the root of the gh-pages branch
-          keep_files: true
+          force_orphan: true
