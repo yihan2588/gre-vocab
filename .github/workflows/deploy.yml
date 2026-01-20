@@ -26,6 +26,9 @@ jobs:
         env:
           VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
 
+      - name: Copy .nojekyll to dist
+        run: cp .nojekyll dist/
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
