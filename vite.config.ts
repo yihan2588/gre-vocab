@@ -4,7 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: '/GRE-vocab/', // Add this line for GitHub Pages deployment
+    base: '/gre-vocab/', // CHANGED: Match repo casing exactly for GitHub Pages URL
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
