@@ -1509,6 +1509,6 @@ export const EBBINGHAUS_INTERVALS_DAYS: number[] = [1, 2, 4, 8, 16, 32, 64];
 
 export const LOCAL_STORAGE_KEY = 'greVocabularyProgress';
 
-export const GEMINI_MODEL_TEXT = 'gemini-2.5-flash-preview-04-17';
+export const GEMINI_MODEL_TEXT = 'gemini-3-flash-preview';
 
 export const LEARN_BATCH_SIZE = 30; // Max words per learning session
