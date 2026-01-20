@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      VITE_API_KEY: ${{ secrets.VITE_API_KEY }}  # Expose secret at job level for all steps
 
     steps:
       - name: Checkout 
@@ -23,8 +25,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
 
       - name: Copy .nojekyll to dist
         run: cp .nojekyll dist/
