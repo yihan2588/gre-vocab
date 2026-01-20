@@ -4,8 +4,10 @@ export interface Word {
   text: string;
   definition?: string; // Will be fetched dynamically
   exampleSentence?: string; // Will be fetched dynamically
-  synonyms?: string[]; // Optional, from ExploredWord
-  antonyms?: string[]; // Optional, from ExploredWord
+  synonyms?: string[]; // Optional
+  synonymNuances?: string;
+  mnemonic?: string;
+  antonyms?: string[]; // Optional
 }
 
 export enum WordStatus {
@@ -30,14 +32,18 @@ export interface ExploredWord {
   text: string;
   definition: string;
   exampleSentence: string;
-  synonyms: string[]; // Make these required for the type, can be empty array
-  antonyms: string[]; // Make these required for the type, can be empty array
+  synonyms: string[];
+  synonymNuances?: string;
+  mnemonic?: string;
+  antonyms: string[]; // Keeping antonyms in type for compatibility, but may be empty
 }
 
 export interface GeminiEvaluationResult {
   isCorrect: boolean;
   feedback: string;
-  confidence?: number; // Optional: if Gemini can provide a confidence score
+  confidence?: number;
+  synonymNuances?: string; // Content to help if incorrect
+  mnemonic?: string; // Content to help if incorrect
 }
 
 export type AppView = 'dashboard' | 'learn' | 'review' | 'explore' | 'all_words';

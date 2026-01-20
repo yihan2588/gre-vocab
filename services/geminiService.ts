@@ -3,7 +3,7 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { ExploredWord, GeminiEvaluationResult } from "../types";
 import { GEMINI_MODEL_TEXT } from "../constants";
 
-const API_KEY = "";
+const API_KEY = import.meta.env.VITE_API_KEY || "";
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
@@ -11,6 +11,9 @@ const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 export interface WordDetailsResponseItem {
   definition: string;
   example_sentence: string;
+  synonymNuances?: string;
+  mnemonic?: string;
+  synonyms?: string[];
 }
 
 interface BatchWordDetailsResponse {
@@ -22,25 +25,31 @@ interface WordDetailsResponse { // For single word fetch
   definition: string;
   example_sentence: string;
   synonyms?: string[];
-  antonyms?: string[];
+  // antonyms?: string[]; // Removed per user request
+  synonymNuances?: string; // New field
+  mnemonic?: string; // New field
 }
 
 interface GeminiEvaluationResponseInternal {
   is_correct: boolean;
   feedback: string;
   confidence?: number;
+  synonymNuances?: string;
+  mnemonic?: string;
 }
 
 
 export async function fetchWordDetails(word: string): Promise<ExploredWord | null> {
   if (!ai) {
-     console.error("Gemini API client is not initialized in fetchWordDetails. API_KEY might be missing or became invalid.");
+    console.error("Gemini API client is not initialized in fetchWordDetails. API_KEY might be missing or became invalid.");
     return {
       text: word,
       definition: "API client not initialized. Check API Key.",
       exampleSentence: "Unable to fetch details.",
       synonyms: [],
       antonyms: [],
+      synonymNuances: "API Key missing.",
+      mnemonic: "API Key missing.",
     };
   }
 
@@ -50,7 +59,8 @@ export async function fetchWordDetails(word: string): Promise<ExploredWord | nul
     2. A concise definition (key: "definition").
     3. An example sentence using the word (key: "example_sentence").
     4. A list of 2-3 common synonyms if applicable (key: "synonyms", array of strings).
-    5. A list of 2-3 common antonyms if applicable (key: "antonyms", array of strings).
+    5. A brief explanation of the nuanced similarity and differences between these synonyms, and when to use which (key: "synonymNuances").
+    6. A short joke or fun fact to help memorizing this word (key: "mnemonic").
 
     Ensure the output is a single JSON object. If you cannot find information, provide empty strings for values or empty arrays for lists, rather than omitting keys.
   `;
@@ -61,10 +71,10 @@ export async function fetchWordDetails(word: string): Promise<ExploredWord | nul
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        temperature: 0.5, 
+        temperature: 0.5,
       }
     });
-    
+
     if (!response.text) {
       throw new Error("Gemini API response text is undefined.");
     }
@@ -82,33 +92,37 @@ export async function fetchWordDetails(word: string): Promise<ExploredWord | nul
       definition: parsedData.definition || "No definition provided by API.",
       exampleSentence: parsedData.example_sentence || "No example sentence provided by API.",
       synonyms: parsedData.synonyms || [],
-      antonyms: parsedData.antonyms || [],
+      antonyms: [], // Removed antonyms
+      synonymNuances: parsedData.synonymNuances,
+      mnemonic: parsedData.mnemonic,
     };
 
   } catch (error) {
     console.error(`Error fetching word details for "${word}" from Gemini API:`, error);
     let defMessage = "Error fetching definition.";
     let exMessage = "Error fetching example sentence.";
-    
+
     if (error instanceof Error) {
-        if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-            defMessage = "API rate limit hit for this word. Please try again after some time.";
-            exMessage = "Details unavailable due to rate limit.";
-        } else if (error.message.includes("API key not valid")) {
-            defMessage = "Invalid API Key. Please check your configuration.";
-            exMessage = "Cannot fetch details due to API key issue.";
-        } else {
-            defMessage = "Could not load definition for this word.";
-            exMessage = "Could not load example for this word.";
-        }
+      if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
+        defMessage = "API rate limit hit for this word. Please try again after some time.";
+        exMessage = "Details unavailable due to rate limit.";
+      } else if (error.message.includes("API key not valid")) {
+        defMessage = "Invalid API Key. Please check your configuration.";
+        exMessage = "Cannot fetch details due to API key issue.";
+      } else {
+        defMessage = "Could not load definition for this word.";
+        exMessage = "Could not load example for this word.";
+      }
     }
-    
+
     return {
       text: word,
       definition: defMessage,
       exampleSentence: exMessage,
       synonyms: [],
       antonyms: [],
+      synonymNuances: "Error loading content.",
+      mnemonic: "Error loading content.",
     };
   }
 }
@@ -120,8 +134,10 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
     words.forEach(word => {
       errorResult[word] = {
         definition: "API client not initialized. Check API Key.",
-        // FIX: Correct property name to example_sentence
         example_sentence: "Unable to fetch details for batch.",
+        synonymNuances: "API Key missing.",
+        mnemonic: "API Key missing.",
+        synonyms: [],
       };
     });
     return errorResult;
@@ -131,23 +147,16 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
   }
 
   const prompt = `
-    For each word in the following list, provide a JSON object containing its definition and an example sentence.
-    The main response should be a single JSON object where each key is one of the input words, and its value is an object with two keys: "definition" and "example_sentence".
+    For each word in the following list, provide a JSON object containing its definition, example sentence, synonyms, a nuance guide for synonyms, and a mnemonic (joke/fun fact).
+    The main response should be a single JSON object where each key is one of the input words, and its value is an object with the following keys: 
+    - "definition"
+    - "example_sentence"
+    - "synonyms" (array of strings, just the words)
+    - "synonymNuances" (string, explaining differences/usage)
+    - "mnemonic" (string, a joke or fun fact to help remember)
 
-    Example structure for input ["word1", "word2"]:
-    {
-      "word1": {
-        "definition": "Definition of word1.",
-        "example_sentence": "Example sentence for word1."
-      },
-      "word2": {
-        "definition": "Definition of word2.",
-        "example_sentence": "Example sentence for word2."
-      }
-    }
-
-    If you cannot find information for a specific word, provide a standard placeholder like "No definition found." or "No example sentence found." for its values. Ensure all requested words are present as keys in your response.
-
+    If you cannot find information for a specific word, provide standard placeholders.
+    
     Input words:
     ${JSON.stringify(words)}
   `;
@@ -158,7 +167,7 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        temperature: 0.3, // Slightly lower temperature for more factual, consistent output
+        temperature: 0.4,
       }
     });
 
@@ -173,22 +182,26 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
     }
 
     const parsedData = JSON.parse(jsonStr) as BatchWordDetailsResponse;
-    
+
     // Ensure all requested words have an entry, even if API omits some
     const result: Record<string, WordDetailsResponseItem> = {};
     words.forEach(word => {
       if (parsedData[word]) {
         result[word] = {
           definition: parsedData[word].definition || "No definition provided by API.",
-          // FIX: Correct property name to example_sentence
-          example_sentence: parsedData[word].example_sentence || "No example sentence provided by API."
+          example_sentence: parsedData[word].example_sentence || "No example sentence provided by API.",
+          synonymNuances: parsedData[word].synonymNuances || "No nuance guide provided.",
+          mnemonic: parsedData[word].mnemonic || "No mnemonic provided.",
+          synonyms: parsedData[word].synonyms || []
         };
       } else {
         // Fallback if a word was in the request but missing in the response
         result[word] = {
           definition: "Details not found in API response for this word.",
-          // FIX: Correct property name to example_sentence
-          example_sentence: "Example not found in API response for this word."
+          example_sentence: "Example not found in API response for this word.",
+          synonymNuances: "Details missing.",
+          mnemonic: "Details missing.",
+          synonyms: [],
         };
       }
     });
@@ -197,24 +210,23 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
   } catch (error) {
     console.error(`Error fetching batch word details from Gemini API for words: ${words.join(', ')}`, error);
     const errorResult: Record<string, WordDetailsResponseItem> = {};
-    let defMessage = "Error fetching definition for batch.";
-    let exMessage = "Error fetching example sentence for batch.";
+    let defMessage = "Error fetching details for batch.";
 
     if (error instanceof Error) {
-        if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-            defMessage = "API rate limit hit during batch fetch. Please try again after some time.";
-            exMessage = "Batch details unavailable due to rate limit.";
-        } else if (error.message.includes("API key not valid")) {
-            defMessage = "Invalid API Key. Cannot fetch batch details.";
-            exMessage = "Please check your API key configuration.";
-        }
+      if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
+        defMessage = "API rate limit hit. Try again later.";
+      } else if (error.message.includes("API key not valid")) {
+        defMessage = "Invalid API Key.";
+      }
     }
 
     words.forEach(word => {
       errorResult[word] = {
         definition: defMessage,
-        // FIX: Correct property name to example_sentence
-        example_sentence: exMessage,
+        example_sentence: defMessage,
+        synonymNuances: defMessage,
+        mnemonic: defMessage,
+        synonyms: [],
       };
     });
     return errorResult;
@@ -239,22 +251,13 @@ export async function evaluateUserExplanation(word: string, definition: string, 
 
     Based on the word's actual definition and example, evaluate the user's input.
     Determine if the user's input correctly and adequately demonstrates understanding of the word.
-    The user's input could be their own definition, or their own example sentence.
-
+    
     Respond in JSON format with the following keys:
-    - "is_correct": boolean (true if the user's input is substantially correct, false otherwise).
-    - "feedback": string (a brief explanation for your evaluation, providing constructive feedback to the user. If incorrect, explain why. If correct, confirm and perhaps highlight what was good.).
-    - "confidence": number (optional, a score from 0.0 to 1.0 indicating your confidence in the evaluation).
-    
-    Example for good user input:
-    Word: "Ephemeral"
-    User input: "It means something that doesn't last long, like a mayfly's life."
-    Expected response: {"is_correct": true, "feedback": "Correct! You've captured the essence of 'ephemeral' meaning short-lived.", "confidence": 0.9}
-    
-    Example for bad user input:
-    Word: "Ephemeral"
-    User input: "It's a type of ghost."
-    Expected response: {"is_correct": false, "feedback": "Not quite. 'Ephemeral' refers to things that last for a very short time, not necessarily supernatural beings.", "confidence": 0.95}
+    - "is_correct": boolean
+    - "feedback": string (brief explanation)
+    - "confidence": number (optional, 0.0-1.0)
+    - "synonymNuances": string (Explain the nuanced similarity and differences between synonyms, and when to use which. Provide this ALWAYS, to help valid learning even if correct, but especially if incorrect.)
+    - "mnemonic": string (A joke or fun fact to help memorizing this word. Provide this ALWAYS.)
 
     Focus on the core meaning and appropriate usage.
   `;
@@ -265,7 +268,7 @@ export async function evaluateUserExplanation(word: string, definition: string, 
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        temperature: 0.6, 
+        temperature: 0.6,
       }
     });
 
@@ -278,26 +281,28 @@ export async function evaluateUserExplanation(word: string, definition: string, 
     if (match && match[2]) {
       jsonStr = match[2].trim();
     }
-    
+
     const parsedData = JSON.parse(jsonStr) as GeminiEvaluationResponseInternal;
 
     return {
       isCorrect: parsedData.is_correct,
       feedback: parsedData.feedback,
       confidence: parsedData.confidence,
+      synonymNuances: parsedData.synonymNuances,
+      mnemonic: parsedData.mnemonic,
     };
 
   } catch (error) {
     console.error("Error evaluating user explanation with Gemini API:", error);
     let feedbackMessage = "Failed to evaluate your explanation.";
     if (error instanceof Error) {
-        if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-            feedbackMessage = "API rate limit hit. Evaluation failed. Please try again after some time.";
-        } else if (error.message.includes("API key not valid")) {
-            feedbackMessage = "Evaluation failed due to invalid API Key. Please check your configuration.";
-        } else {
-            feedbackMessage = "Could not evaluate due to an API error.";
-        }
+      if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
+        feedbackMessage = "API rate limit hit. Evaluation failed. Please try again after some time.";
+      } else if (error.message.includes("API key not valid")) {
+        feedbackMessage = "Evaluation failed due to invalid API Key. Please check your configuration.";
+      } else {
+        feedbackMessage = "Could not evaluate due to an API error.";
+      }
     }
     return {
       isCorrect: false, // Default to incorrect on error

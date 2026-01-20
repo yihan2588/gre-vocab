@@ -9,7 +9,7 @@ interface WordCardProps {
   word: FullWord | null; // Can be null while loading
   learnedInfo?: LearnedWordEntry;
   showDetailsInitially?: boolean; // For learn session primarily
-  
+
   // Props for new Gemini review
   isReviewingDynamically?: boolean;
   userExplanation?: string;
@@ -50,9 +50,9 @@ const WordCard: React.FC<WordCardProps> = ({
     if (!isReviewingPredefined && !isReviewingDynamically) {
       setDetailsVisible(true);
     } else if (isReviewingPredefined) {
-       setDetailsVisible(showDetailsInitially); // For old review, controlled by prop
+      setDetailsVisible(showDetailsInitially); // For old review, controlled by prop
     }
-     // For dynamic review, details (definition/example of target word) are not shown unless explicitly toggled by a new mechanism if needed
+    // For dynamic review, details (definition/example of target word) are not shown unless explicitly toggled by a new mechanism if needed
   }, [showDetailsInitially, isReviewingPredefined, isReviewingDynamically]);
 
 
@@ -62,7 +62,7 @@ const WordCard: React.FC<WordCardProps> = ({
       onReveal();
     }
   };
-  
+
   const getStatusColor = (status?: WordStatus) => {
     switch (status) {
       case WordStatus.MASTERED: return 'bg-green-500';
@@ -93,13 +93,13 @@ const WordCard: React.FC<WordCardProps> = ({
   return (
     <div className={`bg-slate-800 p-6 rounded-lg shadow-xl border border-slate-700 transition-all duration-300 ease-in-out hover:shadow-2xl ${className}`}>
       <h3 className="text-3xl font-semibold text-cyan-400 mb-3">{word.text}</h3>
-      
+
       {learnedInfo && !isReviewingDynamically && ( // Hide status during active Gemini review input phase
         <div className="mb-4 text-xs text-slate-400">
           <span className={`px-2 py-1 rounded-full text-white text-xs font-semibold mr-2 ${getStatusColor(learnedInfo.status)}`}>
             {learnedInfo.status.toUpperCase()}
           </span>
-          <span>Last Reviewed: {formatDate(learnedInfo.lastReviewedDate)}</span> | 
+          <span>Last Reviewed: {formatDate(learnedInfo.lastReviewedDate)}</span> |
           <span> Next Review: {learnedInfo.status !== WordStatus.MASTERED ? formatDate(learnedInfo.nextReviewDate) : 'Mastered!'}</span> |
           <span> Interval: {learnedInfo.status !== WordStatus.MASTERED ? `${EBBINGHAUS_INTERVALS_DAYS[learnedInfo.currentIntervalIndex]} days` : '-'}</span>
         </div>
@@ -110,9 +110,22 @@ const WordCard: React.FC<WordCardProps> = ({
         <div className="space-y-3">
           <p className="text-slate-300"><strong className="text-slate-100">Definition:</strong> {word.definition}</p>
           <p className="text-slate-300 italic"><strong className="text-slate-100 not-italic">Example:</strong> {word.exampleSentence}</p>
+          {word.synonyms && word.synonyms.length > 0 && (
+            <p className="text-slate-300"><strong className="text-slate-100">Synonyms:</strong> {word.synonyms.join(', ')}</p>
+          )}
+          {word.synonymNuances && (
+            <div className="mt-2 bg-slate-700 p-3 rounded-md border-l-4 border-purple-500">
+              <p className="text-slate-300 text-sm"><strong className="text-purple-300">Nuance & Usage:</strong> {word.synonymNuances}</p>
+            </div>
+          )}
+          {word.mnemonic && (
+            <div className="mt-2 bg-slate-700 p-3 rounded-md border-l-4 border-yellow-500">
+              <p className="text-slate-300 text-sm"><strong className="text-yellow-300">Fun Fact / Mnemonic:</strong> {word.mnemonic}</p>
+            </div>
+          )}
         </div>
       )}
-      
+
       {/* Old Reviewing Logic (Predefined options) */}
       {isReviewingPredefined && !detailsVisible && (
         <button
@@ -125,7 +138,7 @@ const WordCard: React.FC<WordCardProps> = ({
       )}
 
       {isReviewingPredefined && detailsVisible && (
-         <div className="space-y-3 mb-4">
+        <div className="space-y-3 mb-4">
           <p className="text-slate-300"><strong className="text-slate-100">Definition:</strong> {word.definition}</p>
           <p className="text-slate-300 italic"><strong className="text-slate-100 not-italic">Example:</strong> {word.exampleSentence}</p>
         </div>
@@ -166,7 +179,7 @@ const WordCard: React.FC<WordCardProps> = ({
           />
           <button
             onClick={onSubmitForEvaluation}
-            disabled={isEvaluating || !userExplanation?.trim() || !process.env.API_KEY}
+            disabled={isEvaluating || !userExplanation?.trim() || !apiKeyAvailable}
             className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isEvaluating ? (
@@ -181,7 +194,7 @@ const WordCard: React.FC<WordCardProps> = ({
               "Submit for Gemini Review"
             )}
           </button>
-           {!process.env.API_KEY && (
+          {!import.meta.env.VITE_API_KEY && (
             <p className="text-xs text-yellow-400 mt-1 text-center">Gemini API key not configured. Review feature is limited.</p>
           )}
         </div>

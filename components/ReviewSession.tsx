@@ -16,25 +16,25 @@ interface ReviewSessionProps {
 }
 
 const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }) => {
-  const { 
-    wordsToReview, 
-    recordReviewOutcome, 
-    recordReviewOutcomeForPractice, 
-    learnedWords, 
+  const {
+    wordsToReview,
+    recordReviewOutcome,
+    recordReviewOutcomeForPractice,
+    learnedWords,
     getWordWithDetails,
-    getBareWordById 
+    getBareWordById
   } = useVocabulary();
-  
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionWords, setSessionWords] = useState<BareWord[]>([]);
-  
+
   const [currentFullWord, setCurrentFullWord] = useState<FullWord | null>(null);
   const [isLoadingWord, setIsLoadingWord] = useState(true);
   const [userExplanation, setUserExplanation] = useState('');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState<GeminiEvaluationResult | null>(null);
 
-  const apiKeyAvailable = !!process.env.API_KEY;
+  const apiKeyAvailable = !!import.meta.env.VITE_API_KEY;
   const isPracticeMode = !!practiceWordId;
 
   // Effect to initialize or reset the session when wordsToReview, practiceWordId, or mode changes
@@ -60,10 +60,10 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
     if (details) {
       setCurrentFullWord(details);
     } else {
-      setCurrentFullWord({ 
-        id: wordId, 
-        text: "Error", 
-        definition: "Could not load word details.", 
+      setCurrentFullWord({
+        id: wordId,
+        text: "Error",
+        definition: "Could not load word details.",
         exampleSentence: "Please try again."
       });
     }
@@ -96,7 +96,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
     );
     setEvaluationResult(result);
     setIsEvaluating(false);
-    
+
     if (isPracticeMode) {
       recordReviewOutcomeForPractice(currentFullWord.id, result.isCorrect);
     } else {
@@ -113,23 +113,23 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
       setView(isPracticeMode ? 'all_words' : 'dashboard');
     }
   };
-  
+
   const handleTraditionalOutcome = (correct: boolean) => {
     if (!currentFullWord) return;
-    
+
     if (isPracticeMode) {
       recordReviewOutcomeForPractice(currentFullWord.id, correct);
     } else {
       recordReviewOutcome(currentFullWord.id, correct);
     }
     // Show simple feedback for traditional mode
-    setEvaluationResult({isCorrect: correct, feedback: correct ? "Marked as correct." : "Marked as incorrect." }); 
+    setEvaluationResult({ isCorrect: correct, feedback: correct ? "Marked as correct." : "Marked as incorrect." });
   };
 
 
   if (sessionWords.length === 0 && !isLoadingWord) { // Ensure not to show this while initially loading practice word
-    const message = isPracticeMode 
-      ? "Could not load word for practice." 
+    const message = isPracticeMode
+      ? "Could not load word for practice."
       : "No words to review right now!";
     const subMessage = isPracticeMode
       ? "Please try again or select another word."
@@ -147,7 +147,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
       </div>
     );
   }
-  
+
   if (evaluationResult) {
     return (
       <div className="container mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -160,27 +160,44 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
           {evaluationResult.isCorrect ? 'Correct!' : 'Needs Improvement'}
         </h3>
         <p className="text-slate-300 text-center mb-6 max-w-xl">{evaluationResult.feedback}</p>
+
+        {!evaluationResult.isCorrect && (
+          <div className="w-full max-w-xl space-y-4 mb-6">
+            {evaluationResult.synonymNuances && (
+              <div className="bg-slate-700 p-4 rounded-lg border-l-4 border-purple-500 text-left">
+                <h4 className="font-bold text-purple-300 mb-1">Nuance & Usage:</h4>
+                <p className="text-slate-300 text-sm">{evaluationResult.synonymNuances}</p>
+              </div>
+            )}
+            {evaluationResult.mnemonic && (
+              <div className="bg-slate-700 p-4 rounded-lg border-l-4 border-yellow-500 text-left">
+                <h4 className="font-bold text-yellow-300 mb-1">Fun Fact / Mnemonic:</h4>
+                <p className="text-slate-300 text-sm">{evaluationResult.mnemonic}</p>
+              </div>
+            )}
+          </div>
+        )}
         <button
           onClick={handleNextAfterFeedback}
           className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-150"
         >
-          {isPracticeMode || currentIndex >= sessionWords.length -1 ? (isPracticeMode ? 'Back to All Words' : 'Finish Session') : 'Next Word'}
+          {isPracticeMode || currentIndex >= sessionWords.length - 1 ? (isPracticeMode ? 'Back to All Words' : 'Finish Session') : 'Next Word'}
         </button>
       </div>
     );
   }
 
   const currentLearnedInfo = currentFullWord ? learnedWords[currentFullWord.id] : undefined;
-  const sessionTitle = isPracticeMode 
+  const sessionTitle = isPracticeMode
     ? `Practice Word: ${currentFullWord?.text || (isLoadingWord ? 'Loading...' : 'Error')}`
     : `Review Words (${sessionWords.length > 0 ? Math.min(currentIndex + 1, sessionWords.length) : 0}/${sessionWords.length})`;
 
   return (
     <div className="container mx-auto p-4 md:p-8 flex flex-col items-center">
       <h2 className="text-3xl font-bold text-amber-400 mb-8">
-         {sessionTitle}
+        {sessionTitle}
       </h2>
-      
+
       {apiKeyAvailable ? (
         <WordCard
           word={currentFullWord}
@@ -203,8 +220,8 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
             word={currentFullWord}
             learnedInfo={currentLearnedInfo}
             isLoadingDetails={isLoadingWord}
-            isReviewingPredefined={true} 
-            showDetailsInitially={false} 
+            isReviewingPredefined={true}
+            showDetailsInitially={false}
             onMarkCorrect={() => handleTraditionalOutcome(true)}
             onMarkIncorrect={() => handleTraditionalOutcome(false)}
             className="w-full max-w-2xl mb-6"
@@ -222,13 +239,13 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
           </button>
         )}
         {isPracticeMode && !evaluationResult && ( // Only show if not already showing feedback screen for practice
-           <button
+          <button
             onClick={() => setView('all_words')}
             className="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150"
             disabled={isEvaluating} // Disable if Gemini is evaluating
-           >
+          >
             Cancel Practice
-           </button>
+          </button>
         )}
       </div>
 
