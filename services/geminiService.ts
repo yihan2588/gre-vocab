@@ -117,12 +117,12 @@ export async function fetchWordDetails(word: string): Promise<ExploredWord | nul
 
     return {
       text: word,
-      definition: defMessage,
-      exampleSentence: exMessage,
+      definition: `Error: ${defMessage}`,
+      exampleSentence: error instanceof Error ? error.message : "Unknown error",
       synonyms: [],
       antonyms: [],
-      synonymNuances: "Error loading content.",
-      mnemonic: "Error loading content.",
+      synonymNuances: "Check console/network tab.",
+      mnemonic: "Check console/network tab.",
     };
   }
 }
@@ -222,10 +222,10 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
 
     words.forEach(word => {
       errorResult[word] = {
-        definition: defMessage,
-        example_sentence: defMessage,
-        synonymNuances: defMessage,
-        mnemonic: defMessage,
+        definition: `Error: ${defMessage}`,
+        example_sentence: error instanceof Error ? error.message : "Unknown error",
+        synonymNuances: "Check settings.",
+        mnemonic: "Check settings.",
         synonyms: [],
       };
     });
