@@ -126,7 +126,8 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
       currentFullWord.text,
       currentFullWord.definition,
       currentFullWord.exampleSentence,
-      userExplanation
+      userExplanation,
+      language  // CRITICAL: Pass the language parameter!
     );
     setEvaluationResult(result);
     setIsEvaluating(false);
