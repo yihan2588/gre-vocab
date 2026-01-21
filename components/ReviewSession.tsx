@@ -15,6 +15,8 @@ interface ReviewSessionProps {
   practiceWordId?: string; // For practicing a single specific word
 }
 
+import { HAS_API_KEY } from '../services/apiConfig';
+
 const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }) => {
   const {
     wordsToReview,
@@ -34,7 +36,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState<GeminiEvaluationResult | null>(null);
 
-  const apiKeyAvailable = !!import.meta.env.VITE_API_KEY;
+  const apiKeyAvailable = HAS_API_KEY;
   const isPracticeMode = !!practiceWordId;
 
   // Effect to initialize or reset the session when wordsToReview, practiceWordId, or mode changes

@@ -5,7 +5,7 @@ import { useVocabulary } from '../hooks/useVocabulary';
 import WordCard from './WordCard';
 import { LEARN_BATCH_SIZE } from '../constants';
 
-type FullWord = Required<Pick<FullWordType, 'id' | 'text' | 'definition' | 'exampleSentence'>>;
+type FullWord = Required<Pick<FullWordType, 'id' | 'text' | 'definition' | 'exampleSentence'>> & Pick<FullWordType, 'synonyms' | 'synonymNuances' | 'mnemonic'>;
 
 interface LearnSessionProps {
   setView: (view: AppView, params?: Record<string, any>) => void;
@@ -13,9 +13,9 @@ interface LearnSessionProps {
 
 const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
   const { wordsToLearn, markAsLearned, getDetailsForWordBatch } = useVocabulary();
-  
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [sessionWords, setSessionWords] = useState<BareWord[]>([]); 
+  const [sessionWords, setSessionWords] = useState<BareWord[]>([]);
   const [detailsForSessionWords, setDetailsForSessionWords] = useState<Record<string, FullWord | null>>({});
   const [isLoadingBatchDetails, setIsLoadingBatchDetails] = useState(false);
   const [isSessionInitialized, setIsSessionInitialized] = useState(false);
@@ -35,20 +35,23 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
       const fetchAllDetailsForBatch = async () => {
         setIsLoadingBatchDetails(true);
         const wordIdsInBatch = sessionWords.map(sw => sw.id);
-        
+
         const batchDetailsMap = await getDetailsForWordBatch(wordIdsInBatch);
-        
+
         const fullWordDetailsBatch: Record<string, FullWord | null> = {};
         for (const bareWord of sessionWords) {
           const detail = batchDetailsMap[bareWord.id];
           if (detail) {
-            fullWordDetailsBatch[bareWord.id] = { 
-              ...bareWord, 
-              definition: detail.definition, 
+            fullWordDetailsBatch[bareWord.id] = {
+              ...bareWord,
+              definition: detail.definition,
               exampleSentence: detail.exampleSentence,
+              synonyms: detail.synonyms,
+              synonymNuances: detail.synonymNuances,
+              mnemonic: detail.mnemonic,
             };
           } else {
-             fullWordDetailsBatch[bareWord.id] = {
+            fullWordDetailsBatch[bareWord.id] = {
               ...bareWord,
               definition: "Could not load definition for this word (batch).",
               exampleSentence: "Could not load example for this word (batch).",
@@ -65,21 +68,21 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
   const handleNextWord = () => {
     const currentWordId = sessionWords[currentIndex]?.id;
     if (currentWordId) {
-      markAsLearned(currentWordId); 
+      markAsLearned(currentWordId);
     }
     if (currentIndex < sessionWords.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      setIsSessionInitialized(false); 
-      setView('dashboard'); 
+      setIsSessionInitialized(false);
+      setView('dashboard');
     }
   };
 
   const handleEndSession = () => {
-    setIsSessionInitialized(false); 
+    setIsSessionInitialized(false);
     setView('dashboard');
   };
-  
+
   useEffect(() => {
     return () => {
       setIsSessionInitialized(false);
@@ -112,52 +115,52 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
       </div>
     );
   }
-  
+
   const currentBareWord = sessionWords[currentIndex];
   const currentFullWord = currentBareWord ? detailsForSessionWords[currentBareWord.id] : null;
 
-   if (!currentBareWord && isSessionInitialized && sessionWords.length > 0 ) {
-     console.warn("LearnSession: Current bare word is undefined. Index:", currentIndex, "SessionWords:", sessionWords);
-     return (
-        <div className="container mx-auto p-8 text-center">
-            <p className="text-red-400 mb-6">Error loading current word.</p>
-            <button
-            onClick={handleEndSession}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition"
-            >
-            Back to Dashboard
-            </button>
-        </div>
-     );
-   }
-   if (!isSessionInitialized && wordsToLearn.length === 0){
-        return (
-          <div className="container mx-auto p-8 text-center">
-            <h2 className="text-2xl font-semibold text-green-400 mb-4">All caught up!</h2>
-            <p className="text-slate-300 mb-6">No new words to learn.</p>
-            <button
-              onClick={() => setView('dashboard')}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        );
-   }
+  if (!currentBareWord && isSessionInitialized && sessionWords.length > 0) {
+    console.warn("LearnSession: Current bare word is undefined. Index:", currentIndex, "SessionWords:", sessionWords);
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <p className="text-red-400 mb-6">Error loading current word.</p>
+        <button
+          onClick={handleEndSession}
+          className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+  if (!isSessionInitialized && wordsToLearn.length === 0) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <h2 className="text-2xl font-semibold text-green-400 mb-4">All caught up!</h2>
+        <p className="text-slate-300 mb-6">No new words to learn.</p>
+        <button
+          onClick={() => setView('dashboard')}
+          className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   // Add padding to the bottom of the main content area to prevent overlap with fixed buttons
   // The height of the button bar is approx 80-90px (py-4 + button height + gap), so pb-28 (112px) should be safe.
   return (
-    <div className="container mx-auto p-4 md:p-8 flex flex-col items-center pb-28"> 
+    <div className="container mx-auto p-4 md:p-8 flex flex-col items-center pb-28">
       <h2 className="text-3xl font-bold text-cyan-400 mb-8">
         Learn New Words ({sessionWords.length > 0 ? Math.min(currentIndex + 1, sessionWords.length) : 0}/{sessionWords.length})
       </h2>
-      
-      <WordCard 
-        word={currentFullWord} 
+
+      <WordCard
+        word={currentFullWord}
         isLoadingDetails={!currentFullWord && !!currentBareWord}
-        showDetailsInitially={true} 
-        className="w-full max-w-2xl mb-8" 
+        showDetailsInitially={true}
+        className="w-full max-w-2xl mb-8"
       />
 
       {/* Fixed button bar */}
@@ -173,7 +176,7 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
           <button
             onClick={handleNextWord}
             className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-150"
-            disabled={isLoadingBatchDetails || !currentFullWord || !isSessionInitialized} 
+            disabled={isLoadingBatchDetails || !currentFullWord || !isSessionInitialized}
           >
             {currentIndex < sessionWords.length - 1 ? 'Got It, Next Word' : 'Finish Session'}
           </button>
