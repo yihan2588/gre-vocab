@@ -12,8 +12,8 @@ const RAW_KEY = import.meta.env.VITE_API_KEY || "";
 function getApiKey(): string {
     if (!RAW_KEY) return "";
 
-    // Check if the key looks like a raw Google API key (starts with AIza)
-    if (RAW_KEY.startsWith("AIza")) {
+    // Check if the key looks like a raw Google API key (starts with AIza) or OpenRouter key (starts with sk-or-)
+    if (RAW_KEY.startsWith("AIza") || RAW_KEY.startsWith("sk-or-")) {
         return RAW_KEY;
     }
 
@@ -21,7 +21,7 @@ function getApiKey(): string {
     try {
         const decoded = atob(RAW_KEY);
         // Simple validation to see if the decoded key looks compliant
-        if (decoded.startsWith("AIza")) {
+        if (decoded.startsWith("AIza") || decoded.startsWith("sk-or-")) {
             return decoded;
         }
         // If it decodes to something else, maybe it wasn't encoded or is a different format.

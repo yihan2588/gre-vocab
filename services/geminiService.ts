@@ -1,10 +1,7 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { ExploredWord, GeminiEvaluationResult } from "../types";
 import { GEMINI_MODEL_TEXT } from "../constants";
 import { API_KEY } from "./apiConfig";
 import { Language } from "../contexts/LanguageContext";
-
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 // Renaming to reflect it's an internal type for the service
 export interface WordDetailsResponseItem {
@@ -37,13 +34,44 @@ interface GeminiEvaluationResponseInternal {
   mnemonic?: string;
 }
 
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+async function fetchOpenRouter(messages: any[], temperature: number = 0.5): Promise<string> {
+  if (!API_KEY) {
+    throw new Error("API Key is missing.");
+  }
+
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "HTTP-Referer": "http://localhost:5173", // Optional: Update with actual site URL
+      "X-Title": "GRE Vocabulary Mastery", // Optional
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: GEMINI_MODEL_TEXT,
+      messages: messages,
+      response_format: { type: "json_object" },
+      temperature: temperature
+    })
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`OpenRouter API Error: ${response.status} - ${errorBody}`);
+  }
+
+  const data = await response.json();
+  return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
+}
 
 export async function fetchWordDetails(word: string, language: Language = 'en'): Promise<ExploredWord | null> {
-  if (!ai) {
-    console.error("Gemini API client is not initialized in fetchWordDetails. API_KEY might be missing or became invalid.");
+  if (!API_KEY) {
+    console.error("API Key is missing in fetchWordDetails.");
     return {
       text: word,
-      definition: "API client not initialized. Check API Key.",
+      definition: "API Key missing.",
       exampleSentence: "Unable to fetch details.",
       synonyms: [],
       antonyms: [],
@@ -52,7 +80,7 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
     };
   }
 
-  const prompt = language === 'zh' 
+  const prompt = language === 'zh'
     ? `
     语言要求 - CRITICAL LANGUAGE RULES:
     - definition: 必须100%简体中文
@@ -93,52 +121,46 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
   `;
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_TEXT,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.5,
-      }
-    });
-
-    if (!response.text) {
-      throw new Error("Gemini API response text is undefined.");
+    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.5);
+    if (!jsonStr) {
+      throw new Error("Empty response from OpenRouter.");
     }
-    let jsonStr = response.text.trim();
+
+    // Try to handle potential markdown fences if OpenRouter/Gemini wraps JSON in them despite strict prompt
+    let cleanJson = jsonStr.trim();
     const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
-    const match = jsonStr.match(fenceRegex);
+    const match = cleanJson.match(fenceRegex);
     if (match && match[2]) {
-      jsonStr = match[2].trim();
+      cleanJson = match[2].trim();
     }
 
-    const parsedData = JSON.parse(jsonStr) as WordDetailsResponse;
+    const parsedData = JSON.parse(cleanJson) as WordDetailsResponse;
 
     return {
       text: parsedData.word || word,
-      definition: parsedData.definition || "No definition provided by API.",
-      exampleSentence: parsedData.example_sentence || "No example sentence provided by API.",
+      definition: parsedData.definition || "No definition provided.",
+      exampleSentence: parsedData.example_sentence || "No example sentence provided.",
       synonyms: parsedData.synonyms || [],
-      antonyms: [], // Removed antonyms
+      antonyms: [],
       synonymNuances: parsedData.synonymNuances,
       mnemonic: parsedData.mnemonic,
     };
 
   } catch (error) {
-    console.error(`Error fetching word details for "${word}" from Gemini API:`, error);
+    console.error(`Error fetching word details for "${word}" from OpenRouter:`, error);
     let defMessage = "Error fetching definition.";
-    let exMessage = "Error fetching example sentence.";
+    let exMessage = "Error fetching example status.";
 
     if (error instanceof Error) {
       if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-        defMessage = "API rate limit hit for this word. Please try again after some time.";
-        exMessage = "Details unavailable due to rate limit.";
-      } else if (error.message.includes("API key not valid")) {
-        defMessage = "Invalid API Key. Please check your configuration.";
-        exMessage = "Cannot fetch details due to API key issue.";
+        defMessage = "Rate limit hit. Try again later.";
+        exMessage = "Unavailable due to rate limit.";
+      } else if (error.message.includes("API Key")) {
+        defMessage = "Invalid API Key.";
+        exMessage = "Check API Key.";
       } else {
-        defMessage = "Could not load definition for this word.";
-        exMessage = "Could not load example for this word.";
+        defMessage = "Could not load definition.";
+        exMessage = "Could not load example.";
       }
     }
 
@@ -148,27 +170,28 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
       exampleSentence: error instanceof Error ? error.message : "Unknown error",
       synonyms: [],
       antonyms: [],
-      synonymNuances: "Check console/network tab.",
-      mnemonic: "Check console/network tab.",
+      synonymNuances: "Check console/network.",
+      mnemonic: "Check console/network.",
     };
   }
 }
 
 export async function fetchMultipleWordDetails(words: string[], language: Language = 'en'): Promise<Record<string, WordDetailsResponseItem>> {
-  if (!ai) {
-    console.error("Gemini API client is not initialized in fetchMultipleWordDetails. API_KEY might be missing.");
+  if (!API_KEY) {
+    console.error("API Key is missing in fetchMultipleWordDetails.");
     const errorResult: Record<string, WordDetailsResponseItem> = {};
     words.forEach(word => {
       errorResult[word] = {
-        definition: "API client not initialized. Check API Key.",
-        example_sentence: "Unable to fetch details for batch.",
+        definition: "API Key missing.",
+        example_sentence: "Unable to fetch.",
         synonymNuances: "API Key missing.",
         mnemonic: "API Key missing.",
         synonyms: [],
-      };
+      }
     });
     return errorResult;
   }
+
   if (words.length === 0) {
     return {};
   }
@@ -220,43 +243,34 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
   `;
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_TEXT,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.4,
-      }
-    });
-
-    if (!response.text) {
-      throw new Error("Gemini API response text is undefined.");
+    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.4);
+    if (!jsonStr) {
+      throw new Error("Empty response from OpenRouter for batch.");
     }
-    let jsonStr = response.text.trim();
+
+    let cleanJson = jsonStr.trim();
     const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
-    const match = jsonStr.match(fenceRegex);
+    const match = cleanJson.match(fenceRegex);
     if (match && match[2]) {
-      jsonStr = match[2].trim();
+      cleanJson = match[2].trim();
     }
 
-    const parsedData = JSON.parse(jsonStr) as BatchWordDetailsResponse;
-
-    // Ensure all requested words have an entry, even if API omits some
+    const parsedData = JSON.parse(cleanJson) as BatchWordDetailsResponse;
     const result: Record<string, WordDetailsResponseItem> = {};
+
     words.forEach(word => {
       if (parsedData[word]) {
         result[word] = {
-          definition: parsedData[word].definition || "No definition provided by API.",
-          example_sentence: parsedData[word].example_sentence || "No example sentence provided by API.",
-          synonymNuances: parsedData[word].synonymNuances || "No nuance guide provided.",
-          mnemonic: parsedData[word].mnemonic || "No mnemonic provided.",
+          definition: parsedData[word].definition || "No definition provided.",
+          example_sentence: parsedData[word].example_sentence || "No example provided.",
+          synonymNuances: parsedData[word].synonymNuances || "No nuance guide.",
+          mnemonic: parsedData[word].mnemonic || "No mnemonic.",
           synonyms: parsedData[word].synonyms || []
         };
       } else {
-        // Fallback if a word was in the request but missing in the response
         result[word] = {
-          definition: "Details not found in API response for this word.",
-          example_sentence: "Example not found in API response for this word.",
+          definition: "Details not found.",
+          example_sentence: "Example not found.",
           synonymNuances: "Details missing.",
           mnemonic: "Details missing.",
           synonyms: [],
@@ -266,14 +280,14 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
     return result;
 
   } catch (error) {
-    console.error(`Error fetching batch word details from Gemini API for words: ${words.join(', ')}`, error);
+    console.error(`Error fetching batch details from OpenRouter:`, error);
     const errorResult: Record<string, WordDetailsResponseItem> = {};
-    let defMessage = "Error fetching details for batch.";
+    let defMessage = "Error fetching batch.";
 
     if (error instanceof Error) {
       if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-        defMessage = "API rate limit hit. Try again later.";
-      } else if (error.message.includes("API key not valid")) {
+        defMessage = "Rate limit hit.";
+      } else if (error.message.includes("API Key")) {
         defMessage = "Invalid API Key.";
       }
     }
@@ -291,13 +305,12 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
   }
 }
 
-
 export async function evaluateUserExplanation(word: string, definition: string, exampleSentence: string, userExplanation: string, language: Language = 'en'): Promise<GeminiEvaluationResult> {
-  if (!ai) {
-    console.error("Gemini API client is not initialized in evaluateUserExplanation. API_KEY might be missing.");
+  if (!API_KEY) {
+    console.error("API Key is missing in evaluateUserExplanation.");
     return {
       isCorrect: false,
-      feedback: "Evaluation service not available: API client not initialized. Check API Key.",
+      feedback: "Evaluation service unavailable: API Key missing.",
     };
   }
 
@@ -356,26 +369,19 @@ export async function evaluateUserExplanation(word: string, definition: string, 
   `;
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_TEXT,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.6,
-      }
-    });
-
-    if (!response.text) {
-      throw new Error("Gemini API response text is undefined.");
+    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.6);
+    if (!jsonStr) {
+      throw new Error("Empty response for evaluation.");
     }
-    let jsonStr = response.text.trim();
+
+    let cleanJson = jsonStr.trim();
     const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
-    const match = jsonStr.match(fenceRegex);
+    const match = cleanJson.match(fenceRegex);
     if (match && match[2]) {
-      jsonStr = match[2].trim();
+      cleanJson = match[2].trim();
     }
 
-    const parsedData = JSON.parse(jsonStr) as GeminiEvaluationResponseInternal;
+    const parsedData = JSON.parse(cleanJson) as GeminiEvaluationResponseInternal;
 
     return {
       isCorrect: parsedData.is_correct,
@@ -386,19 +392,21 @@ export async function evaluateUserExplanation(word: string, definition: string, 
     };
 
   } catch (error) {
-    console.error("Error evaluating user explanation with Gemini API:", error);
-    let feedbackMessage = "Failed to evaluate your explanation.";
+    console.error("Error evaluating user explanation:", error);
+    let feedbackMessage = "Failed to evaluate.";
+
     if (error instanceof Error) {
       if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-        feedbackMessage = "API rate limit hit. Evaluation failed. Please try again after some time.";
-      } else if (error.message.includes("API key not valid")) {
-        feedbackMessage = "Evaluation failed due to invalid API Key. Please check your configuration.";
+        feedbackMessage = "Rate limit hit. Evaluation failed.";
+      } else if (error.message.includes("API Key")) {
+        feedbackMessage = "Invalid API Key.";
       } else {
-        feedbackMessage = "Could not evaluate due to an API error.";
+        feedbackMessage = "Evaluation error: " + error.message;
       }
     }
+
     return {
-      isCorrect: false, // Default to incorrect on error
+      isCorrect: false,
       feedback: feedbackMessage,
     };
   }
