@@ -125,6 +125,7 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
         <p className="text-slate-300">
           {t('fetchingDetails', language)} {Math.min(LEARN_BATCH_SIZE, wordsToLearn.length)} {t('words', language)}.
         </p>
+        <p className="text-slate-400 text-sm mt-2">{t('loadingDuration', language)}</p>
       </div>
     );
   }

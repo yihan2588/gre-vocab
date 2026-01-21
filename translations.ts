@@ -6,7 +6,7 @@ export const translations = {
     en: 'GRE Vocabulary Mastery',
     zh: 'GRE词汇精通'
   },
-  
+
   // Dashboard
   dashboardWelcome: {
     en: 'Welcome to Your GRE Prep Hub',
@@ -44,7 +44,7 @@ export const translations = {
     en: 'Explore with Gemini',
     zh: '使用Gemini探索'
   },
-  
+
   // Learn Session
   learnNewWordsTitle: {
     en: 'Learn New Words',
@@ -74,6 +74,10 @@ export const translations = {
     en: 'words',
     zh: '个单词'
   },
+  loadingDuration: {
+    en: 'This might take one to two minutes.',
+    zh: '这可能需要一到两分钟。'
+  },
   endSession: {
     en: 'End Session',
     zh: '结束课程'
@@ -86,7 +90,7 @@ export const translations = {
     en: 'Finish Session',
     zh: '完成课程'
   },
-  
+
   // Review Session
   reviewWords: {
     en: 'Review Words',
@@ -152,7 +156,7 @@ export const translations = {
     en: 'Cancel Practice',
     zh: '取消练习'
   },
-  
+
   // Word Card
   definition: {
     en: 'Definition:',
@@ -218,7 +222,7 @@ export const translations = {
     en: 'days',
     zh: '天'
   },
-  
+
   // Explore Word
   exploreWordTitle: {
     en: 'Explore Word with Gemini',
@@ -252,7 +256,7 @@ export const translations = {
     en: 'Antonyms:',
     zh: '反义词：'
   },
-  
+
   // All Words View
   allVocabularyWords: {
     en: 'All Vocabulary Words',
@@ -314,7 +318,7 @@ export const translations = {
     en: 'Level',
     zh: '级别'
   },
-  
+
   // Footer
   madeWith: {
     en: 'Made with',
@@ -324,7 +328,7 @@ export const translations = {
     en: 'by',
     zh: '制作，作者'
   },
-  
+
   // Status
   status: {
     new: {
@@ -344,7 +348,7 @@ export const translations = {
       zh: '已掌握'
     }
   },
-  
+
   // Notice messages
   apiNoticeManual: {
     en: 'Gemini API key not found. Falling back to manual review mode. Please check the word\'s definition and mark if you remembered it correctly.',
