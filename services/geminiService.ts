@@ -287,24 +287,30 @@ export async function evaluateUserExplanation(word: string, definition: string, 
 
   const prompt = language === 'zh'
     ? `
-    IMPORTANT: Generate ALL feedback content in SIMPLIFIED CHINESE (简体中文) ONLY.
+    CRITICAL: You MUST respond in SIMPLIFIED CHINESE (简体中文) for ALL text fields. Do NOT use English.
 
     目标单词是 "${word}"。
     其定义是："${definition}"
     一个例句是："${exampleSentence}"
     用户提供了以下解释或例句："${userExplanation}"
 
-    根据单词的实际定义和例子，评估用户的输入。
-    确定用户的输入是否正确且充分地展示了对该单词的理解。
+    请根据单词的实际定义和例子，评估用户的输入。确定用户的输入是否正确且充分地展示了对该单词的理解。
     
-    以JSON格式响应，包含以下键：
-    - "is_correct": 布尔值
-    - "feedback": 字符串（简要解释，**必须用简体中文**）
-    - "confidence": 数字（可选，0.0-1.0）
-    - "synonymNuances": 字符串（**必须用简体中文**解释同义词之间的细微差别和相似之处，以及何时使用哪个。始终提供此项，即使答案正确也要帮助有效学习，尤其是答案错误时。）
-    - "mnemonic": 字符串（笑话或趣味知识来帮助记忆这个单词，**必须用简体中文**。始终提供此项。）
+    **必须以JSON格式响应，包含以下所有键（每个字段都必须有内容）：**
+    
+    {
+      "is_correct": true 或 false（布尔值）,
+      "feedback": "详细的反馈说明，用简体中文解释为什么正确或错误，至少2-3句话。必须提供具体的反馈内容，不能为空！",
+      "confidence": 0.8（数字，0.0-1.0之间）,
+      "synonymNuances": "用简体中文详细解释这个单词的同义词之间的细微差别和相似之处，以及何时使用哪个。必须提供！",
+      "mnemonic": "用简体中文提供一个有趣的笑话、故事或记忆技巧来帮助记忆这个单词。必须提供！"
+    }
 
-    **重要提醒：所有反馈内容（feedback、synonymNuances、mnemonic）都必须用简体中文生成。**
+    **关键要求：**
+    1. feedback字段必须是详细的简体中文说明（不能只说"正确"或"需要改进"），要解释原因
+    2. 所有文本字段（feedback、synonymNuances、mnemonic）都必须用简体中文
+    3. 每个字段都必须有实质性的内容，不能为空
+    4. feedback要具体说明用户理解得对不对，哪里需要改进
 
     专注于核心含义和适当用法。
   `
