@@ -54,19 +54,27 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
 
   const prompt = language === 'zh' 
     ? `
-    IMPORTANT: Generate ALL content in SIMPLIFIED CHINESE (简体中文) ONLY, except for the synonyms which must be English words.
+    语言要求 - CRITICAL LANGUAGE RULES:
+    - definition: 必须100%简体中文
+    - example_sentence: 必须100%英文 (This helps users learn English!)
+    - synonyms: 必须是英文单词
+    - synonymNuances: 必须100%简体中文
+    - mnemonic: 必须100%简体中文
 
-    对于单词 "${word}"，请用简体中文提供以下信息（以JSON格式）：
-    1. 单词本身（键："word"）。
-    2. 简明的定义（键："definition"），**必须用简体中文**。
-    3. 使用该单词的例句（键："example_sentence"），**必须用简体中文**。
-    4. 2-3个常用同义词列表（键："synonyms"，字符串数组），**同义词必须是英文单词**。
-    5. 用简体中文简要解释这些同义词之间的细微差别和相似之处，以及何时使用哪个（键："synonymNuances"），**必须用简体中文**。
-    6. 一个简短的笑话或趣味知识来帮助记忆这个单词（键："mnemonic"），**必须用简体中文**。
+    对于英文单词 "${word}"，请提供以下信息（JSON格式）：
 
-    **重要提醒：除了synonyms字段中的同义词必须是英文单词外，其他所有内容（definition、example_sentence、synonymNuances、mnemonic）都必须用简体中文生成。**
+    {
+      "word": "${word}",
+      "definition": "用简体中文写的定义",
+      "example_sentence": "A complete English sentence using the word '${word}' naturally",
+      "synonyms": ["synonym1", "synonym2"],
+      "synonymNuances": "用简体中文详细解释同义词之间的区别",
+      "mnemonic": "用简体中文提供记忆技巧"
+    }
 
-    确保输出是单个JSON对象。如果找不到信息，提供空字符串或空数组，而不是省略键。
+    **关键：example_sentence必须是纯英文句子！不要翻译成中文！**
+    
+    其他字段（除了synonyms和example_sentence）必须用简体中文。
   `
     : `
     IMPORTANT: Generate ALL content in ENGLISH ONLY.
@@ -167,21 +175,29 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
 
   const prompt = language === 'zh'
     ? `
-    IMPORTANT: Generate ALL content in SIMPLIFIED CHINESE (简体中文) ONLY, except for the synonyms which must be English words.
+    语言要求 - CRITICAL LANGUAGE RULES FOR EACH WORD:
+    - "definition": 必须100%简体中文
+    - "example_sentence": 必须100%英文 (English sentence! 帮助用户学习英语)
+    - "synonyms": 数组，每个同义词都是英文单词
+    - "synonymNuances": 必须100%简体中文
+    - "mnemonic": 必须100%简体中文
 
-    对于以下列表中的每个单词，请用简体中文提供包含其定义、例句、同义词、同义词细微差别指南和记忆技巧（笑话/趣味知识）的JSON对象。
-    主响应应该是单个JSON对象，其中每个键是一个输入单词，其值是具有以下键的对象：
-    - "definition"（**必须用简体中文**）
-    - "example_sentence"（**必须用简体中文**）
-    - "synonyms"（字符串数组，**必须是英文单词**）
-    - "synonymNuances"（字符串，**必须用简体中文**解释差异/用法）
-    - "mnemonic"（字符串，笑话或趣味知识来帮助记忆，**必须用简体中文**）
+    对于以下英文单词列表，返回一个JSON对象，每个单词作为键，值是包含以下字段的对象：
 
-    **重要提醒：除了synonyms字段必须是英文单词外，其他所有内容都必须用简体中文生成。**
+    示例格式：
+    {
+      "wordname": {
+        "definition": "简体中文定义",
+        "example_sentence": "Complete English sentence using the word naturally",
+        "synonyms": ["synonym1", "synonym2"],
+        "synonymNuances": "用简体中文解释同义词的细微差别",
+        "mnemonic": "用简体中文的记忆技巧"
+      }
+    }
 
-    如果找不到特定单词的信息，请提供标准占位符。
-    
-    输入单词：
+    **关键规则：example_sentence必须是完整的英文句子，不能翻译成中文！**
+
+    输入单词列表：
     ${JSON.stringify(words)}
   `
     : `
@@ -287,32 +303,34 @@ export async function evaluateUserExplanation(word: string, definition: string, 
 
   const prompt = language === 'zh'
     ? `
-    CRITICAL: You MUST respond in SIMPLIFIED CHINESE (简体中文) for ALL text fields. Do NOT use English.
+    **绝对语言要求 - ABSOLUTE LANGUAGE REQUIREMENT:**
+    你必须用100%纯简体中文回答所有字段。禁止使用任何英文单词（除非是引用用户输入或单词本身）。
 
-    目标单词是 "${word}"。
-    其定义是："${definition}"
-    一个例句是："${exampleSentence}"
-    用户提供了以下解释或例句："${userExplanation}"
+    评估任务：
+    目标单词：${word}
+    标准定义：${definition}
+    标准例句：${exampleSentence}
+    用户解释：${userExplanation}
 
-    请根据单词的实际定义和例子，评估用户的输入。确定用户的输入是否正确且充分地展示了对该单词的理解。
-    
-    **必须以JSON格式响应，包含以下所有键（每个字段都必须有内容）：**
-    
+    请评估用户的理解是否正确。
+
+    **JSON响应格式（所有文本必须是简体中文）：**
     {
-      "is_correct": true 或 false（布尔值）,
-      "feedback": "详细的反馈说明，用简体中文解释为什么正确或错误，至少2-3句话。必须提供具体的反馈内容，不能为空！",
-      "confidence": 0.8（数字，0.0-1.0之间）,
-      "synonymNuances": "用简体中文详细解释这个单词的同义词之间的细微差别和相似之处，以及何时使用哪个。必须提供！",
-      "mnemonic": "用简体中文提供一个有趣的笑话、故事或记忆技巧来帮助记忆这个单词。必须提供！"
+      "is_correct": true,
+      "feedback": "你的理解非常准确。你正确地识别了这个词表示XXX的含义，并且你的解释展现了对这个词在实际使用中的深刻理解。继续保持！",
+      "confidence": 0.85,
+      "synonymNuances": "这个词的同义词包括XXX和YYY。它们之间的主要区别是：XXX侧重于..., 而YYY则强调... 使用时要注意...",
+      "mnemonic": "记忆技巧：可以联想... 或者想象... 这样就能轻松记住这个词了！"
     }
 
-    **关键要求：**
-    1. feedback字段必须是详细的简体中文说明（不能只说"正确"或"需要改进"），要解释原因
-    2. 所有文本字段（feedback、synonymNuances、mnemonic）都必须用简体中文
-    3. 每个字段都必须有实质性的内容，不能为空
-    4. feedback要具体说明用户理解得对不对，哪里需要改进
+    **严格规则：**
+    1. feedback必须完整的简体中文句子（3-4句），详细说明为什么对/错
+    2. synonymNuances必须完整的简体中文段落
+    3. mnemonic必须完整的简体中文段落
+    4. 不要在feedback、synonymNuances、mnemonic中使用英文词汇
+    5. 所有标点符号使用中文标点（，。！？）
 
-    专注于核心含义和适当用法。
+    立即生成100%简体中文的JSON响应。
   `
     : `
     IMPORTANT: Generate ALL feedback content in ENGLISH ONLY.
