@@ -88,13 +88,15 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
 
     if (wordDetailsCache[wordId]) {
       const cachedDetail = wordDetailsCache[wordId];
-      return {
-        ...bareWord,
-        definition: cachedDetail.definition,
-        exampleSentence: cachedDetail.exampleSentence,
-        synonyms: [], // Batch fetch currently doesn't get these, provide empty
-        antonyms: []  // Batch fetch currently doesn't get these, provide empty
-      };
+      if (cachedDetail.definition !== "API key not configured." && !cachedDetail.definition.startsWith("Error:")) {
+        return {
+          ...bareWord,
+          definition: cachedDetail.definition,
+          exampleSentence: cachedDetail.exampleSentence,
+          synonyms: [], // Batch fetch currently doesn't get these, provide empty
+          antonyms: []  // Batch fetch currently doesn't get these, provide empty
+        };
+      }
     }
 
     if (requestsInFlightRef.current[wordId]) {
@@ -192,7 +194,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     const wordIdToTextMap: Record<string, string> = {}; // map text to ID for parsing response
 
     for (const id of wordIds) {
-      if (wordDetailsCache[id]) {
+      if (wordDetailsCache[id] && wordDetailsCache[id].definition !== "API key not configured." && !wordDetailsCache[id].definition.startsWith("Error:")) {
         results[id] = wordDetailsCache[id];
       } else {
         const bareWord = getBareWordById(id);
