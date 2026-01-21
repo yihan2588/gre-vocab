@@ -1,9 +1,7 @@
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { ExploredWord, GeminiEvaluationResult } from "../types";
 import { GEMINI_MODEL_TEXT } from "../constants";
-
-const API_KEY = import.meta.env.VITE_API_KEY || "";
+import { API_KEY } from "./apiConfig";
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 

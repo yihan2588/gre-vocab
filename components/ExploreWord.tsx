@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { AppView, ExploredWord } from '../types';
 import { fetchWordDetails } from '../services/geminiService';
 import SparklesIcon from './icons/SparklesIcon';
+import { HAS_API_KEY } from '../services/apiConfig';
+
 
 interface ExploreWordProps {
   setView: (view: AppView, params?: Record<string, any>) => void;
@@ -66,7 +68,7 @@ const ExploreWord: React.FC<ExploreWordProps> = ({ setView }) => {
           />
           <button
             onClick={handleFetchWord}
-            disabled={isLoading || !import.meta.env.VITE_API_KEY}
+            disabled={isLoading || !HAS_API_KEY}
             className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isLoading ? (
@@ -78,7 +80,7 @@ const ExploreWord: React.FC<ExploreWordProps> = ({ setView }) => {
             {isLoading ? 'Fetching...' : 'Explore Word'}
           </button>
         </div>
-        {!import.meta.env.VITE_API_KEY && (
+        {!HAS_API_KEY && (
           <p className="text-xs text-yellow-400 mt-2">Gemini API key not configured. This feature is disabled.</p>
         )}
       </div>

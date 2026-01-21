@@ -3,6 +3,7 @@ import { Word, LearnedWordEntry, WordStatus, ExploredWord, AppView } from '../ty
 import { INITIAL_GRE_WORDS, LOCAL_STORAGE_KEY, LEARN_BATCH_SIZE } from '../constants';
 import { getInitialLearnedWordEntry, updateLearnedWordEntry } from '../services/ebbinghaus';
 import { fetchWordDetails as fetchWordDetailsFromAPI, fetchMultipleWordDetails, WordDetailsResponseItem, evaluateUserExplanation as evaluateUserExplanationAPI } from '../services/geminiService';
+import { HAS_API_KEY } from '../services/apiConfig';
 
 type BareWord = Pick<Word, 'id' | 'text'>;
 type FullWord = Required<Word>;
@@ -111,7 +112,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
       return { ...bareWord, definition: "Loading error (in-flight)...", exampleSentence: "Please try again.", synonyms: [], antonyms: [] };
     }
 
-    if (!import.meta.env.VITE_API_KEY) {
+    if (!HAS_API_KEY) {
       console.warn("API_KEY not found, cannot fetch word details for single word.");
       const apiKeyMissingDetail = { definition: "API key not configured.", exampleSentence: "Please configure API key." };
       // Cache this specific error state to prevent re-fetches if API key is missing
@@ -204,7 +205,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
 
     if (wordsToFetchTexts.length === 0) return results;
 
-    if (!import.meta.env.VITE_API_KEY) {
+    if (!HAS_API_KEY) {
       console.warn("API_KEY not found, cannot fetch batch word details.");
       const errorDetailsToCache: Record<string, WordDetail> = {};
       wordsToFetchTexts.forEach(text => {
