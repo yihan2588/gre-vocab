@@ -26,6 +26,7 @@ export interface VocabularyContextType {
   getBareWordById: (id: string) => BareWord | undefined;
   resetWordProgress: (wordId: string) => void;
   resetAllProgress: () => void;
+  clearAllCache: () => void;
 }
 
 // Export the context itself so it can be imported by hooks/useVocabulary.ts
@@ -45,7 +46,35 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
       try {
         const parsedProgress = JSON.parse(storedProgress);
         setLearnedWords(parsedProgress.learnedWords || {});
-        setWordDetailsCache(parsedProgress.wordDetailsCache || {});
+
+        // Aggressively filter out bad cache entries from previous API key errors
+        let cleanCache = parsedProgress.wordDetailsCache || {};
+        let hasChanges = false;
+
+        for (const key in cleanCache) {
+          const def = cleanCache[key]?.definition;
+          if (def && (
+            def.includes("API key not configured") ||
+            def.includes("Cannot fetch batch") ||
+            def.includes("Error:") ||
+            def.includes("Could not load definition")
+          )) {
+            delete cleanCache[key];
+            hasChanges = true;
+          }
+        }
+
+        setWordDetailsCache(cleanCache);
+        if (hasChanges) {
+          console.log("Cleaned invalid API error cache entries.");
+          // Optional: Persist the cleaning immediately or just let it save on next update
+          const dataToStore = {
+            learnedWords: parsedProgress.learnedWords || {},
+            wordDetailsCache: cleanCache,
+          };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToStore));
+        }
+
       } catch (error) {
         console.error("Failed to parse stored vocabulary progress:", error);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -394,6 +423,16 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     saveProgress({}, allWordIdsToClearFromCache); // Reset learnedWords to empty, clear cache for all initial words
   }, [saveProgress, allWordsState]);
 
+  const clearAllCache = useCallback(() => {
+    setWordDetailsCache({});
+    const dataToStore = {
+      learnedWords: learnedWords,
+      wordDetailsCache: {},
+    };
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToStore));
+    window.location.reload(); // Force reload to ensure fresh state
+  }, [learnedWords]);
+
 
   const value: VocabularyContextType = {
     allWords: allWordsState,
@@ -411,6 +450,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     getBareWordById,
     resetWordProgress,
     resetAllProgress,
+    clearAllCache,
   };
 
   return <VocabularyContext.Provider value={value}>{children}</VocabularyContext.Provider>;

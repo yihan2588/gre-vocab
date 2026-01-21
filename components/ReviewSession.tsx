@@ -144,6 +144,14 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
         >
           {isPracticeMode ? 'Back to All Words' : 'Back to Dashboard'}
         </button>
+        <div className="mt-8">
+          <button
+            onClick={() => { if (confirm("This will clear cached definitions to fix API errors. Continue?")) window.localStorage.removeItem("gre_vocab_progress_v1"); window.location.reload(); }}
+            className="text-slate-500 hover:text-red-400 text-sm underline"
+          >
+            Fix "API Key" Errors (Clear Cache)
+          </button>
+        </div>
       </div>
     );
   }
