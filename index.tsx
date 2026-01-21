@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { VocabularyProvider } from './contexts/VocabularyContext'; // Import the provider
-
+import { VocabularyProvider } from './contexts/VocabularyContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
@@ -14,9 +14,11 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <VocabularyProvider>
-        <App />
-      </VocabularyProvider>
+      <LanguageProvider>
+        <VocabularyProvider>
+          <App />
+        </VocabularyProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

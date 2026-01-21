@@ -1,9 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Word as BareWord, AppView, Word as FullWordType } from '../types';
 import { useVocabulary } from '../hooks/useVocabulary';
 import WordCard from './WordCard';
 import { LEARN_BATCH_SIZE } from '../constants';
+import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../translations';
 
 type FullWord = Required<Pick<FullWordType, 'id' | 'text' | 'definition' | 'exampleSentence'>> & Pick<FullWordType, 'synonyms' | 'synonymNuances' | 'mnemonic'>;
 
@@ -13,6 +14,7 @@ interface LearnSessionProps {
 
 const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
   const { wordsToLearn, markAsLearned, getDetailsForWordBatch } = useVocabulary();
+  const { language } = useLanguage();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionWords, setSessionWords] = useState<BareWord[]>([]);
@@ -92,13 +94,13 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
   if (wordsToLearn.length === 0 && !isSessionInitialized && sessionWords.length === 0) {
     return (
       <div className="container mx-auto p-8 text-center">
-        <h2 className="text-2xl font-semibold text-green-400 mb-4">All caught up!</h2>
-        <p className="text-slate-300 mb-6">You've learned all available new words for now.</p>
+        <h2 className="text-2xl font-semibold text-green-400 mb-4">{t('allCaughtUp', language)}</h2>
+        <p className="text-slate-300 mb-6">{t('allWordsLearned', language)}</p>
         <button
           onClick={() => setView('dashboard')}
           className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-150"
         >
-          Back to Dashboard
+          {t('backToDashboard', language)}
         </button>
       </div>
     );
@@ -108,9 +110,9 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
     return (
       <div className="container mx-auto p-8 text-center flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-400 mb-4"></div>
-        <h2 className="text-2xl font-semibold text-cyan-400 mb-2">Preparing your learning session...</h2>
+        <h2 className="text-2xl font-semibold text-cyan-400 mb-2">{t('preparingSession', language)}</h2>
         <p className="text-slate-300">
-          Fetching details for {Math.min(LEARN_BATCH_SIZE, wordsToLearn.length)} words.
+          {t('fetchingDetails', language)} {Math.min(LEARN_BATCH_SIZE, wordsToLearn.length)} {t('words', language)}.
         </p>
       </div>
     );
@@ -123,12 +125,12 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
     console.warn("LearnSession: Current bare word is undefined. Index:", currentIndex, "SessionWords:", sessionWords);
     return (
       <div className="container mx-auto p-8 text-center">
-        <p className="text-red-400 mb-6">Error loading current word.</p>
+        <p className="text-red-400 mb-6">{t('error', language)} loading current word.</p>
         <button
           onClick={handleEndSession}
           className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition"
         >
-          Back to Dashboard
+          {t('backToDashboard', language)}
         </button>
       </div>
     );
@@ -136,24 +138,22 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
   if (!isSessionInitialized && wordsToLearn.length === 0) {
     return (
       <div className="container mx-auto p-8 text-center">
-        <h2 className="text-2xl font-semibold text-green-400 mb-4">All caught up!</h2>
+        <h2 className="text-2xl font-semibold text-green-400 mb-4">{t('allCaughtUp', language)}</h2>
         <p className="text-slate-300 mb-6">No new words to learn.</p>
         <button
           onClick={() => setView('dashboard')}
           className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition"
         >
-          Back to Dashboard
+          {t('backToDashboard', language)}
         </button>
       </div>
     );
   }
 
-  // Add padding to the bottom of the main content area to prevent overlap with fixed buttons
-  // The height of the button bar is approx 80-90px (py-4 + button height + gap), so pb-28 (112px) should be safe.
   return (
     <div className="container mx-auto p-4 md:p-8 flex flex-col items-center pb-28">
       <h2 className="text-3xl font-bold text-cyan-400 mb-8">
-        Learn New Words ({sessionWords.length > 0 ? Math.min(currentIndex + 1, sessionWords.length) : 0}/{sessionWords.length})
+        {t('learnNewWordsTitle', language)} ({sessionWords.length > 0 ? Math.min(currentIndex + 1, sessionWords.length) : 0}/{sessionWords.length})
       </h2>
 
       <WordCard
@@ -163,7 +163,6 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
         className="w-full max-w-2xl mb-8"
       />
 
-      {/* Fixed button bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 p-4 shadow-top-md">
         <div className="container mx-auto flex justify-center items-center space-x-4">
           <button
@@ -171,19 +170,17 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
             className="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150"
             disabled={isLoadingBatchDetails}
           >
-            End Session
+            {t('endSession', language)}
           </button>
           <button
             onClick={handleNextWord}
             className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-150"
             disabled={isLoadingBatchDetails || !currentFullWord || !isSessionInitialized}
           >
-            {currentIndex < sessionWords.length - 1 ? 'Got It, Next Word' : 'Finish Session'}
+            {currentIndex < sessionWords.length - 1 ? t('gotItNextWord', language) : t('finishSession', language)}
           </button>
         </div>
       </div>
-      {/* Fix: Removed styled-jsx specific props 'jsx' and 'global' to treat as standard HTML style tag, resolving TypeScript error.
-          The CSS within is applied globally. */}
       <style>{`
         .shadow-top-md {
           box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);

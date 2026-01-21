@@ -4,6 +4,7 @@ import { INITIAL_GRE_WORDS, LOCAL_STORAGE_KEY, LEARN_BATCH_SIZE } from '../const
 import { getInitialLearnedWordEntry, updateLearnedWordEntry } from '../services/ebbinghaus';
 import { fetchWordDetails as fetchWordDetailsFromAPI, fetchMultipleWordDetails, WordDetailsResponseItem, evaluateUserExplanation as evaluateUserExplanationAPI } from '../services/geminiService';
 import { HAS_API_KEY } from '../services/apiConfig';
+import { useLanguage } from './LanguageContext';
 
 type BareWord = Pick<Word, 'id' | 'text'>;
 type FullWord = Required<Word>;
@@ -33,6 +34,7 @@ export interface VocabularyContextType {
 export const VocabularyContext = createContext<VocabularyContextType | undefined>(undefined);
 
 export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { language } = useLanguage();
   const [allWordsState] = useState<BareWord[]>(INITIAL_GRE_WORDS.map(w => ({ id: w.id, text: w.text })));
   const [learnedWords, setLearnedWords] = useState<Record<string, LearnedWordEntry>>({});
   const [wordDetailsCache, setWordDetailsCache] = useState<Record<string, WordDetail>>({});
@@ -122,8 +124,10 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
           ...bareWord,
           definition: cachedDetail.definition,
           exampleSentence: cachedDetail.exampleSentence,
-          synonyms: [], // Batch fetch currently doesn't get these, provide empty
-          antonyms: []  // Batch fetch currently doesn't get these, provide empty
+          synonyms: cachedDetail.synonyms || [],
+          synonymNuances: cachedDetail.synonymNuances || '',
+          mnemonic: cachedDetail.mnemonic || '',
+          antonyms: []
         };
       }
     }
@@ -135,12 +139,14 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
           ...bareWord,
           definition: detailsFromInFlight.definition,
           exampleSentence: detailsFromInFlight.exampleSentence,
-          synonyms: [],
+          synonyms: detailsFromInFlight.synonyms || [],
+          synonymNuances: detailsFromInFlight.synonymNuances || '',
+          mnemonic: detailsFromInFlight.mnemonic || '',
           antonyms: []
         };
       }
       // Fallback if in-flight promise resolves to null or error state from within promise
-      return { ...bareWord, definition: "Loading error (in-flight)...", exampleSentence: "Please try again.", synonyms: [], antonyms: [] };
+      return { ...bareWord, definition: "Loading error (in-flight)...", exampleSentence: "Please try again.", synonyms: [], synonymNuances: '', mnemonic: '', antonyms: [] };
     }
 
     if (!HAS_API_KEY) {
@@ -148,12 +154,12 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
       const apiKeyMissingDetail = { definition: "API key not configured.", exampleSentence: "Please configure API key." };
       // Cache this specific error state to prevent re-fetches if API key is missing
       setWordDetailsCache(prevCache => ({ ...prevCache, [wordId]: apiKeyMissingDetail }));
-      return { ...bareWord, ...apiKeyMissingDetail, synonyms: [], antonyms: [] };
+      return { ...bareWord, ...apiKeyMissingDetail, synonyms: [], synonymNuances: '', mnemonic: '', antonyms: [] };
     }
 
     const fetchPromise = (async (): Promise<WordDetail | null> => {
       try {
-        const apiDetailsExplored = await fetchWordDetailsFromAPI(bareWord.text);
+        const apiDetailsExplored = await fetchWordDetailsFromAPI(bareWord.text, language);
         if (apiDetailsExplored) {
           // We need the full ExploredWord for synonyms/antonyms if available from single fetch
           const newDetail: WordDetail = {
@@ -169,8 +175,8 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
             exampleSentence: apiDetailsExplored.exampleSentence,
             synonyms: apiDetailsExplored.synonyms || [],
             antonyms: apiDetailsExplored.antonyms || [],
-            synonymNuances: apiDetailsExplored.synonymNuances,
-            mnemonic: apiDetailsExplored.mnemonic,
+            synonymNuances: apiDetailsExplored.synonymNuances || '',
+            mnemonic: apiDetailsExplored.mnemonic || '',
           }
           // Update cache with extended details
           setWordDetailsCache(prevCache => {
@@ -197,23 +203,18 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     const details = await fetchPromise;
 
     if (details) {
-      // If single fetchWordDetailsFromAPI was used, it might have synonyms/antonyms.
-      // However, the cache stores WordDetail. Re-fetch full for immediate return if needed, or adjust.
-      // For now, stick to WordDetail structure for return from cache/simple fetch.
-      // The `ExploredWord` type from `fetchWordDetailsFromAPI` should be used if we want to return more.
-      // This part needs care: current design caches WordDetail (def+ex only).
-      // If WordCard expects FullWord with synonyms/antonyms, this needs adjustment or WordCard needs to handle missing ones.
-      // Let's assume for now that getWordWithDetails primarily ensures definition & example.
       return {
         ...bareWord,
         definition: details.definition,
         exampleSentence: details.exampleSentence,
-        synonyms: [], // Keep consistent, full details with syn/ant might need separate logic or type adjustment
+        synonyms: details.synonyms || [],
+        synonymNuances: details.synonymNuances || '',
+        mnemonic: details.mnemonic || '',
         antonyms: []
       };
     }
     const fallbackDetail: WordDetail = { definition: "Could not load definition (fallback).", exampleSentence: "Could not load example (fallback)." };
-    return { ...bareWord, ...fallbackDetail, synonyms: [], antonyms: [] };
+    return { ...bareWord, ...fallbackDetail, synonyms: [], synonymNuances: '', mnemonic: '', antonyms: [] };
   }, [getBareWordById, wordDetailsCache, saveProgress, learnedWords]);
 
 
@@ -285,7 +286,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     }
 
     const currentBatchPromiseBuilder = async (): Promise<Record<string, WordDetail>> => { // This promise should resolve to Record<string(ID), WordDetail>
-      const rawBatchDetailsByText = await fetchMultipleWordDetails(wordsToFetchTexts); // API returns Record<string(text), WordDetailsResponseItem>
+      const rawBatchDetailsByText = await fetchMultipleWordDetails(wordsToFetchTexts, language); // API returns Record<string(text), WordDetailsResponseItem>
       const transformedDetailsById: Record<string, WordDetail> = {};
       for (const wordText in rawBatchDetailsByText) {
         if (Object.prototype.hasOwnProperty.call(rawBatchDetailsByText, wordText)) {
@@ -434,6 +435,14 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
   }, [learnedWords]);
 
 
+  // Wrap evaluateUserExplanation to inject language parameter
+  const evaluateUserExplanationWithLanguage = useCallback(
+    (word: string, definition: string, exampleSentence: string, userExplanation: string) => {
+      return evaluateUserExplanationAPI(word, definition, exampleSentence, userExplanation, language);
+    },
+    [language]
+  );
+
   const value: VocabularyContextType = {
     allWords: allWordsState,
     learnedWords,
@@ -445,7 +454,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     markAsLearned,
     recordReviewOutcome,
     recordReviewOutcomeForPractice,
-    evaluateUserExplanation: evaluateUserExplanationAPI,
+    evaluateUserExplanation: evaluateUserExplanationWithLanguage,
     getProgressStats,
     getBareWordById,
     resetWordProgress,

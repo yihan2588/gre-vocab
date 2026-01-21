@@ -2,6 +2,7 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { ExploredWord, GeminiEvaluationResult } from "../types";
 import { GEMINI_MODEL_TEXT } from "../constants";
 import { API_KEY } from "./apiConfig";
+import { Language } from "../contexts/LanguageContext";
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
@@ -37,7 +38,7 @@ interface GeminiEvaluationResponseInternal {
 }
 
 
-export async function fetchWordDetails(word: string): Promise<ExploredWord | null> {
+export async function fetchWordDetails(word: string, language: Language = 'en'): Promise<ExploredWord | null> {
   if (!ai) {
     console.error("Gemini API client is not initialized in fetchWordDetails. API_KEY might be missing or became invalid.");
     return {
@@ -51,7 +52,19 @@ export async function fetchWordDetails(word: string): Promise<ExploredWord | nul
     };
   }
 
-  const prompt = `
+  const prompt = language === 'zh' 
+    ? `
+    对于单词 "${word}"，请用简体中文提供以下信息（以JSON格式）：
+    1. 单词本身（键："word"）。
+    2. 简明的定义（键："definition"），用简体中文。
+    3. 使用该单词的例句（键："example_sentence"），用简体中文。
+    4. 2-3个常用同义词列表（键："synonyms"，字符串数组），同义词必须是英文单词。
+    5. 用简体中文简要解释这些同义词之间的细微差别和相似之处，以及何时使用哪个（键："synonymNuances"）。
+    6. 一个简短的笑话或趣味知识来帮助记忆这个单词（键："mnemonic"），用简体中文。
+
+    确保输出是单个JSON对象。如果找不到信息，提供空字符串或空数组，而不是省略键。
+  `
+    : `
     For the word "${word}", provide the following information in JSON format:
     1. The word itself (key: "word").
     2. A concise definition (key: "definition").
@@ -125,7 +138,7 @@ export async function fetchWordDetails(word: string): Promise<ExploredWord | nul
   }
 }
 
-export async function fetchMultipleWordDetails(words: string[]): Promise<Record<string, WordDetailsResponseItem>> {
+export async function fetchMultipleWordDetails(words: string[], language: Language = 'en'): Promise<Record<string, WordDetailsResponseItem>> {
   if (!ai) {
     console.error("Gemini API client is not initialized in fetchMultipleWordDetails. API_KEY might be missing.");
     const errorResult: Record<string, WordDetailsResponseItem> = {};
@@ -144,7 +157,22 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
     return {};
   }
 
-  const prompt = `
+  const prompt = language === 'zh'
+    ? `
+    对于以下列表中的每个单词，请用简体中文提供包含其定义、例句、同义词、同义词细微差别指南和记忆技巧（笑话/趣味知识）的JSON对象。
+    主响应应该是单个JSON对象，其中每个键是一个输入单词，其值是具有以下键的对象：
+    - "definition"（用简体中文）
+    - "example_sentence"（用简体中文）
+    - "synonyms"（字符串数组，必须是英文单词）
+    - "synonymNuances"（字符串，用简体中文解释差异/用法）
+    - "mnemonic"（字符串，笑话或趣味知识来帮助记忆，用简体中文）
+
+    如果找不到特定单词的信息，请提供标准占位符。
+    
+    输入单词：
+    ${JSON.stringify(words)}
+  `
+    : `
     For each word in the following list, provide a JSON object containing its definition, example sentence, synonyms, a nuance guide for synonyms, and a mnemonic (joke/fun fact).
     The main response should be a single JSON object where each key is one of the input words, and its value is an object with the following keys: 
     - "definition"
@@ -232,7 +260,7 @@ export async function fetchMultipleWordDetails(words: string[]): Promise<Record<
 }
 
 
-export async function evaluateUserExplanation(word: string, definition: string, exampleSentence: string, userExplanation: string): Promise<GeminiEvaluationResult> {
+export async function evaluateUserExplanation(word: string, definition: string, exampleSentence: string, userExplanation: string, language: Language = 'en'): Promise<GeminiEvaluationResult> {
   if (!ai) {
     console.error("Gemini API client is not initialized in evaluateUserExplanation. API_KEY might be missing.");
     return {
@@ -241,7 +269,26 @@ export async function evaluateUserExplanation(word: string, definition: string, 
     };
   }
 
-  const prompt = `
+  const prompt = language === 'zh'
+    ? `
+    目标单词是 "${word}"。
+    其定义是："${definition}"
+    一个例句是："${exampleSentence}"
+    用户提供了以下解释或例句："${userExplanation}"
+
+    根据单词的实际定义和例子，评估用户的输入。
+    确定用户的输入是否正确且充分地展示了对该单词的理解。
+    
+    以JSON格式响应，包含以下键：
+    - "is_correct": 布尔值
+    - "feedback": 字符串（简要解释，用简体中文）
+    - "confidence": 数字（可选，0.0-1.0）
+    - "synonymNuances": 字符串（用简体中文解释同义词之间的细微差别和相似之处，以及何时使用哪个。始终提供此项，即使答案正确也要帮助有效学习，尤其是答案错误时。）
+    - "mnemonic": 字符串（笑话或趣味知识来帮助记忆这个单词，用简体中文。始终提供此项。）
+
+    专注于核心含义和适当用法。
+  `
+    : `
     The target word is "${word}".
     Its definition is: "${definition}"
     An example sentence is: "${exampleSentence}"

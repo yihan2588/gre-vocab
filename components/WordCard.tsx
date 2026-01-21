@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Word, LearnedWordEntry, WordStatus } from '../types'; // Word here means FullWord
 import { EBBINGHAUS_INTERVALS_DAYS } from '../constants';
+import { useLanguage } from '../contexts/LanguageContext';
+import { t, tn } from '../translations';
 
 // Expect Word to have definition and exampleSentence, even if they are loading messages
 type FullWord = Required<Pick<Word, 'id' | 'text' | 'definition' | 'exampleSentence'>> & Pick<Word, 'synonyms' | 'synonymNuances' | 'mnemonic'>;
@@ -45,6 +47,7 @@ const WordCard: React.FC<WordCardProps> = ({
   className = "",
   isLoadingDetails = false,
 }) => {
+  const { language } = useLanguage();
   const [detailsVisible, setDetailsVisible] = useState(showDetailsInitially);
   const apiKeyAvailable = HAS_API_KEY;
 
@@ -100,30 +103,30 @@ const WordCard: React.FC<WordCardProps> = ({
       {learnedInfo && !isReviewingDynamically && ( // Hide status during active Gemini review input phase
         <div className="mb-4 text-xs text-slate-400">
           <span className={`px-2 py-1 rounded-full text-white text-xs font-semibold mr-2 ${getStatusColor(learnedInfo.status)}`}>
-            {learnedInfo.status.toUpperCase()}
+            {tn('status', learnedInfo.status, language)}
           </span>
-          <span>Last Reviewed: {formatDate(learnedInfo.lastReviewedDate)}</span> |
-          <span> Next Review: {learnedInfo.status !== WordStatus.MASTERED ? formatDate(learnedInfo.nextReviewDate) : 'Mastered!'}</span> |
-          <span> Interval: {learnedInfo.status !== WordStatus.MASTERED ? `${EBBINGHAUS_INTERVALS_DAYS[learnedInfo.currentIntervalIndex]} days` : '-'}</span>
+          <span>{t('lastReviewed', language)} {formatDate(learnedInfo.lastReviewedDate)}</span> |
+          <span> {t('nextReview', language)} {learnedInfo.status !== WordStatus.MASTERED ? formatDate(learnedInfo.nextReviewDate) : t('mastered', language)}</span> |
+          <span> {t('interval', language)} {learnedInfo.status !== WordStatus.MASTERED ? `${EBBINGHAUS_INTERVALS_DAYS[learnedInfo.currentIntervalIndex]} ${t('days', language)}` : '-'}</span>
         </div>
       )}
 
       {/* Details for Learning or AllWordsView */}
       {(!isReviewingPredefined && !isReviewingDynamically && detailsVisible) && (
         <div className="space-y-3">
-          <p className="text-slate-300"><strong className="text-slate-100">Definition:</strong> {word.definition}</p>
-          <p className="text-slate-300 italic"><strong className="text-slate-100 not-italic">Example:</strong> {word.exampleSentence}</p>
+          <p className="text-slate-300"><strong className="text-slate-100">{t('definition', language)}</strong> {word.definition}</p>
+          <p className="text-slate-300 italic"><strong className="text-slate-100 not-italic">{t('example', language)}</strong> {word.exampleSentence}</p>
           {word.synonyms && word.synonyms.length > 0 && (
-            <p className="text-slate-300"><strong className="text-slate-100">Synonyms:</strong> {word.synonyms.join(', ')}</p>
+            <p className="text-slate-300"><strong className="text-slate-100">{t('synonyms', language)}</strong> {word.synonyms.join(', ')}</p>
           )}
           {word.synonymNuances && (
             <div className="mt-2 bg-slate-700 p-3 rounded-md border-l-4 border-purple-500">
-              <p className="text-slate-300 text-sm"><strong className="text-purple-300">Nuance & Usage:</strong> {word.synonymNuances}</p>
+              <p className="text-slate-300 text-sm"><strong className="text-purple-300">{t('nuanceUsage', language)}</strong> {word.synonymNuances}</p>
             </div>
           )}
           {word.mnemonic && (
             <div className="mt-2 bg-slate-700 p-3 rounded-md border-l-4 border-yellow-500">
-              <p className="text-slate-300 text-sm"><strong className="text-yellow-300">Fun Fact / Mnemonic:</strong> {word.mnemonic}</p>
+              <p className="text-slate-300 text-sm"><strong className="text-yellow-300">{t('funFactMnemonic', language)}</strong> {word.mnemonic}</p>
             </div>
           )}
         </div>
@@ -136,14 +139,14 @@ const WordCard: React.FC<WordCardProps> = ({
           className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
           aria-label="Show answer for the word"
         >
-          Show Answer
+          {t('showAnswer', language)}
         </button>
       )}
 
       {isReviewingPredefined && detailsVisible && (
         <div className="space-y-3 mb-4">
-          <p className="text-slate-300"><strong className="text-slate-100">Definition:</strong> {word.definition}</p>
-          <p className="text-slate-300 italic"><strong className="text-slate-100 not-italic">Example:</strong> {word.exampleSentence}</p>
+          <p className="text-slate-300"><strong className="text-slate-100">{t('definition', language)}</strong> {word.definition}</p>
+          <p className="text-slate-300 italic"><strong className="text-slate-100 not-italic">{t('example', language)}</strong> {word.exampleSentence}</p>
         </div>
       )}
 
@@ -154,13 +157,13 @@ const WordCard: React.FC<WordCardProps> = ({
             onClick={onMarkIncorrect}
             className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
           >
-            Incorrect
+            {t('incorrect', language)}
           </button>
           <button
             onClick={onMarkCorrect}
             className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out"
           >
-            Correct
+            {t('correct', language)}
           </button>
         </div>
       )}
@@ -169,15 +172,15 @@ const WordCard: React.FC<WordCardProps> = ({
       {isReviewingDynamically && (
         <div className="mt-4 space-y-4">
           <p className="text-slate-300">
-            Explain the word <strong className="text-cyan-300">"{word.text}"</strong> in your own words, or use it in an example sentence.
+            {t('explainWord', language)} <strong className="text-cyan-300">"{word.text}"</strong> {t('inYourOwnWords', language)}
           </p>
           <textarea
             value={userExplanation}
             onChange={(e) => onUserExplanationChange && onUserExplanationChange(e.target.value)}
-            placeholder="Type your explanation or example here..."
+            placeholder={t('typeExplanation', language)}
             rows={4}
             className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none"
-            aria-label={`Your explanation for ${word.text}`}
+            aria-label={`${t('yourExplanationFor', language)} ${word.text}`}
             disabled={isEvaluating}
           />
           <button
@@ -191,14 +194,14 @@ const WordCard: React.FC<WordCardProps> = ({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Evaluating...
+                {t('evaluating', language)}
               </>
             ) : (
-              "Submit for Gemini Review"
+              t('submitForReview', language)
             )}
           </button>
           {!apiKeyAvailable && (
-            <p className="text-xs text-yellow-400 mt-1 text-center">Gemini API key not configured. Review feature is limited.</p>
+            <p className="text-xs text-yellow-400 mt-1 text-center">{t('apiKeyNotConfigured', language)}</p>
           )}
         </div>
       )}

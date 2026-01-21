@@ -6,6 +6,8 @@ import WordCard from './WordCard';
 import CheckIcon from './icons/CheckIcon';
 import XMarkIcon from './icons/XMarkIcon';
 import { evaluateUserExplanation } from '../services/geminiService';
+import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../translations';
 
 // Define FullWord for clarity
 type FullWord = Required<Pick<FullWordType, 'id' | 'text' | 'definition' | 'exampleSentence'>>;
@@ -26,6 +28,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
     getWordWithDetails,
     getBareWordById
   } = useVocabulary();
+  const { language } = useLanguage();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionWords, setSessionWords] = useState<BareWord[]>([]);
@@ -147,11 +150,11 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
 
   if (sessionWords.length === 0 && !isLoadingWord) { // Ensure not to show this while initially loading practice word
     const message = isPracticeMode
-      ? "Could not load word for practice."
-      : "No words to review right now!";
+      ? t('couldNotLoadWord', language)
+      : t('noWordsToReview', language);
     const subMessage = isPracticeMode
-      ? "Please try again or select another word."
-      : "Excellent work! Come back later or learn some new words.";
+      ? t('tryAgain', language)
+      : t('excellentWork', language);
     return (
       <div className="container mx-auto p-8 text-center">
         <h2 className="text-2xl font-semibold text-green-400 mb-4">{message}</h2>
@@ -160,14 +163,14 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
           onClick={() => setView(isPracticeMode ? 'all_words' : 'dashboard')}
           className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-150"
         >
-          {isPracticeMode ? 'Back to All Words' : 'Back to Dashboard'}
+          {isPracticeMode ? t('backToAllWords', language) : t('backToDashboard', language)}
         </button>
         <div className="mt-8">
           <button
             onClick={() => { if (confirm("This will clear cached definitions to fix API errors. Continue?")) window.localStorage.removeItem("gre_vocab_progress_v1"); window.location.reload(); }}
             className="text-slate-500 hover:text-red-400 text-sm underline"
           >
-            Fix "API Key" Errors (Clear Cache)
+            {t('fixApiErrors', language)}
           </button>
         </div>
       </div>
@@ -183,7 +186,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
           <XMarkIcon className="w-24 h-24 text-red-500 mb-4" />
         )}
         <h3 className={`text-3xl font-bold mb-3 ${evaluationResult.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-          {evaluationResult.isCorrect ? 'Correct!' : 'Needs Improvement'}
+          {evaluationResult.isCorrect ? t('correct', language) : t('needsImprovement', language)}
         </h3>
         <p className="text-slate-300 text-center mb-6 max-w-xl">{evaluationResult.feedback}</p>
 
@@ -191,13 +194,13 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
           <div className="w-full max-w-xl space-y-4 mb-6">
             {evaluationResult.synonymNuances && (
               <div className="bg-slate-700 p-4 rounded-lg border-l-4 border-purple-500 text-left">
-                <h4 className="font-bold text-purple-300 mb-1">Nuance & Usage:</h4>
+                <h4 className="font-bold text-purple-300 mb-1">{t('nuanceUsage', language)}</h4>
                 <p className="text-slate-300 text-sm">{evaluationResult.synonymNuances}</p>
               </div>
             )}
             {evaluationResult.mnemonic && (
               <div className="bg-slate-700 p-4 rounded-lg border-l-4 border-yellow-500 text-left">
-                <h4 className="font-bold text-yellow-300 mb-1">Fun Fact / Mnemonic:</h4>
+                <h4 className="font-bold text-yellow-300 mb-1">{t('funFactMnemonic', language)}</h4>
                 <p className="text-slate-300 text-sm">{evaluationResult.mnemonic}</p>
               </div>
             )}
@@ -207,7 +210,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
           onClick={handleNextAfterFeedback}
           className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-150"
         >
-          {isPracticeMode || currentIndex >= sessionWords.length - 1 ? (isPracticeMode ? 'Back to All Words' : 'Finish Session') : 'Next Word'}
+          {isPracticeMode || currentIndex >= sessionWords.length - 1 ? (isPracticeMode ? t('backToAllWords', language) : t('finishSession', language)) : t('nextWord', language)}
         </button>
       </div>
     );
@@ -215,8 +218,8 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
 
   const currentLearnedInfo = currentFullWord ? learnedWords[currentFullWord.id] : undefined;
   const sessionTitle = isPracticeMode
-    ? `Practice Word: ${currentFullWord?.text || (isLoadingWord ? 'Loading...' : 'Error')}`
-    : `Review Words (${sessionWords.length > 0 ? Math.min(currentIndex + 1, sessionWords.length) : 0}/${sessionWords.length})`;
+    ? `${t('practiceWord', language)}: ${currentFullWord?.text || (isLoadingWord ? t('loading', language) : t('error', language))}`
+    : `${t('reviewWords', language)} (${sessionWords.length > 0 ? Math.min(currentIndex + 1, sessionWords.length) : 0}/${sessionWords.length})`;
 
   return (
     <div className="container mx-auto p-4 md:p-8 flex flex-col items-center">
@@ -239,8 +242,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
       ) : (
         <>
           <p className="text-yellow-400 bg-slate-800 p-3 rounded-md mb-4 text-sm border border-yellow-600">
-            <strong className="font-semibold">Notice:</strong> Gemini API key not found. Falling back to manual review mode.
-            Please check the word's definition and mark if you remembered it correctly.
+            <strong className="font-semibold">Notice:</strong> {t('apiNoticeManual', language)}
           </p>
           <WordCard
             word={currentFullWord}
@@ -261,7 +263,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
             className="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150"
             disabled={isEvaluating} // Disable if Gemini is evaluating
           >
-            End Session
+            {t('endSession', language)}
           </button>
         )}
         {isPracticeMode && !evaluationResult && ( // Only show if not already showing feedback screen for practice
@@ -270,7 +272,7 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
             className="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150"
             disabled={isEvaluating} // Disable if Gemini is evaluating
           >
-            Cancel Practice
+            {t('cancelPractice', language)}
           </button>
         )}
       </div>
