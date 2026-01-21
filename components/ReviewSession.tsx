@@ -40,21 +40,32 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
   const isPracticeMode = !!practiceWordId;
 
   // Effect to initialize or reset the session when wordsToReview, practiceWordId, or mode changes
+  const [isSessionInitialized, setIsSessionInitialized] = useState(false);
+
+  // Effect to reset session when switching modes
   useEffect(() => {
+    setIsSessionInitialized(false);
+    setSessionWords([]);
+    setCurrentIndex(0);
+    setEvaluationResult(null);
+    setUserExplanation('');
+  }, [practiceWordId, isPracticeMode]);
+
+  // Effect to load words into the session (snapshot)
+  useEffect(() => {
+    if (isSessionInitialized) return;
+
     if (isPracticeMode && practiceWordId) {
       const practiceBareWord = getBareWordById(practiceWordId);
       if (practiceBareWord) {
         setSessionWords([practiceBareWord]);
-      } else {
-        setSessionWords([]); // Word not found, or handle error
+        setIsSessionInitialized(true);
       }
-    } else {
-      setSessionWords(wordsToReview); // Use all due words for the session
+    } else if (wordsToReview.length > 0) {
+      setSessionWords(wordsToReview); // Snapshot current review list
+      setIsSessionInitialized(true);
     }
-    setCurrentIndex(0);
-    setEvaluationResult(null); // Reset feedback for new session/word
-    setUserExplanation('');    // Reset text area for new session/word
-  }, [wordsToReview, practiceWordId, isPracticeMode, getBareWordById]);
+  }, [wordsToReview, practiceWordId, isPracticeMode, getBareWordById, isSessionInitialized]);
 
   const loadWordDetails = useCallback(async (wordId: string) => {
     setIsLoadingWord(true);
