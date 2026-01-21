@@ -90,14 +90,16 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
   useEffect(() => {
     if (sessionWords.length > 0 && currentIndex < sessionWords.length) {
       const currentBareWord = sessionWords[currentIndex];
-      loadWordDetails(currentBareWord.id);
-      // DO NOT reset evaluationResult or userExplanation here, as it causes feedback to flash.
-      // These are reset when the session initially loads (above) or when explicitly moving to next word.
+      // Only load if checking a NEW word or if we don't have the current full word yet
+      // This prevents re-loading if something else triggers a re-render
+      if (!currentFullWord || currentFullWord.id !== currentBareWord.id) {
+        loadWordDetails(currentBareWord.id);
+      }
     } else if (sessionWords.length > 0 && currentIndex >= sessionWords.length) {
       // Session finished
       setView(isPracticeMode ? 'all_words' : 'dashboard');
     }
-  }, [sessionWords, currentIndex, loadWordDetails, setView, isPracticeMode]);
+  }, [sessionWords, currentIndex, loadWordDetails, setView, isPracticeMode, currentFullWord]);
 
   const handleSubmitForEvaluation = async () => {
     if (!currentFullWord || !userExplanation.trim() || !apiKeyAvailable) return;
