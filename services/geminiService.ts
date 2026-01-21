@@ -36,7 +36,7 @@ interface GeminiEvaluationResponseInternal {
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-async function fetchOpenRouter(messages: any[], temperature: number = 0.5): Promise<string> {
+async function fetchOpenRouter(messages: any[], temperature: number = 0.5, modelId: string = GEMINI_MODEL_TEXT): Promise<string> {
   if (!API_KEY) {
     throw new Error("API Key is missing.");
   }
@@ -50,7 +50,7 @@ async function fetchOpenRouter(messages: any[], temperature: number = 0.5): Prom
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: GEMINI_MODEL_TEXT,
+      model: modelId,
       messages: messages,
       response_format: { type: "json_object" },
       temperature: temperature
@@ -66,7 +66,7 @@ async function fetchOpenRouter(messages: any[], temperature: number = 0.5): Prom
   return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "";
 }
 
-export async function fetchWordDetails(word: string, language: Language = 'en'): Promise<ExploredWord | null> {
+export async function fetchWordDetails(word: string, language: Language = 'en', modelId: string = GEMINI_MODEL_TEXT): Promise<ExploredWord | null> {
   if (!API_KEY) {
     console.error("API Key is missing in fetchWordDetails.");
     return {
@@ -121,7 +121,7 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
   `;
 
   try {
-    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.5);
+    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.5, modelId);
     if (!jsonStr) {
       throw new Error("Empty response from OpenRouter.");
     }
@@ -176,7 +176,7 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
   }
 }
 
-export async function fetchMultipleWordDetails(words: string[], language: Language = 'en'): Promise<Record<string, WordDetailsResponseItem>> {
+export async function fetchMultipleWordDetails(words: string[], language: Language = 'en', modelId: string = GEMINI_MODEL_TEXT): Promise<Record<string, WordDetailsResponseItem>> {
   if (!API_KEY) {
     console.error("API Key is missing in fetchMultipleWordDetails.");
     const errorResult: Record<string, WordDetailsResponseItem> = {};
@@ -243,7 +243,7 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
   `;
 
   try {
-    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.4);
+    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.4, modelId);
     if (!jsonStr) {
       throw new Error("Empty response from OpenRouter for batch.");
     }
@@ -305,7 +305,7 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
   }
 }
 
-export async function evaluateUserExplanation(word: string, definition: string, exampleSentence: string, userExplanation: string, language: Language = 'en'): Promise<GeminiEvaluationResult> {
+export async function evaluateUserExplanation(word: string, definition: string, exampleSentence: string, userExplanation: string, language: Language = 'en', modelId: string = GEMINI_MODEL_TEXT): Promise<GeminiEvaluationResult> {
   if (!API_KEY) {
     console.error("API Key is missing in evaluateUserExplanation.");
     return {
@@ -369,7 +369,7 @@ export async function evaluateUserExplanation(word: string, definition: string, 
   `;
 
   try {
-    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.6);
+    const jsonStr = await fetchOpenRouter([{ role: "user", content: prompt }], 0.6, modelId);
     if (!jsonStr) {
       throw new Error("Empty response for evaluation.");
     }

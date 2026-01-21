@@ -5,6 +5,7 @@ import { getInitialLearnedWordEntry, updateLearnedWordEntry } from '../services/
 import { fetchWordDetails as fetchWordDetailsFromAPI, fetchMultipleWordDetails, WordDetailsResponseItem, evaluateUserExplanation as evaluateUserExplanationAPI } from '../services/geminiService';
 import { HAS_API_KEY } from '../services/apiConfig';
 import { useLanguage } from './LanguageContext';
+import { useModel } from './ModelContext';
 
 type BareWord = Pick<Word, 'id' | 'text'>;
 type FullWord = Required<Word>;
@@ -35,6 +36,7 @@ export const VocabularyContext = createContext<VocabularyContextType | undefined
 
 export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { language } = useLanguage();
+  const { modelId } = useModel();
   const [allWordsState] = useState<BareWord[]>(INITIAL_GRE_WORDS.map(w => ({ id: w.id, text: w.text })));
   const [learnedWords, setLearnedWords] = useState<Record<string, LearnedWordEntry>>({});
   const [wordDetailsCache, setWordDetailsCache] = useState<Record<string, WordDetail>>({});
@@ -96,25 +98,52 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
   useEffect(() => {
     if (previousLanguageRef.current !== null && previousLanguageRef.current !== language) {
       console.log(`Language changed from ${previousLanguageRef.current} to ${language}. Clearing word details cache.`);
-      
+
       // Clear the cache
       setWordDetailsCache({});
-      
+
       // Cancel any in-flight requests
       requestsInFlightRef.current = {};
       batchRequestInFlightRef.current = null;
-      
+
       // Update localStorage without the cache
       const dataToStore = {
         learnedWords: learnedWords,
         wordDetailsCache: {},
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToStore));
-      
+
       // Update the ref to the new language
       previousLanguageRef.current = language;
     }
   }, [language, learnedWords]);
+
+  const previousModelRef = useRef<string | null>(null);
+
+  // Initialize previousModelRef
+  useEffect(() => {
+    if (previousModelRef.current === null) {
+      previousModelRef.current = modelId;
+    }
+  }, [modelId]);
+
+  // Effect to clear cache when model changes
+  useEffect(() => {
+    if (previousModelRef.current !== null && previousModelRef.current !== modelId) {
+      console.log(`Model changed from ${previousModelRef.current} to ${modelId}. Clearing word details cache.`);
+      setWordDetailsCache({});
+      requestsInFlightRef.current = {};
+      batchRequestInFlightRef.current = null;
+
+      const dataToStore = {
+        learnedWords: learnedWords,
+        wordDetailsCache: {},
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToStore));
+
+      previousModelRef.current = modelId;
+    }
+  }, [modelId, learnedWords]);
 
   const saveProgress = useCallback((
     updatedLearnedWords: Record<string, LearnedWordEntry>,
@@ -191,7 +220,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
 
     const fetchPromise = (async (): Promise<WordDetail | null> => {
       try {
-        const apiDetailsExplored = await fetchWordDetailsFromAPI(bareWord.text, language);
+        const apiDetailsExplored = await fetchWordDetailsFromAPI(bareWord.text, language, modelId);
         if (apiDetailsExplored) {
           // We need the full ExploredWord for synonyms/antonyms if available from single fetch
           const newDetail: WordDetail = {
@@ -201,20 +230,11 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
             mnemonic: apiDetailsExplored.mnemonic,
             synonyms: apiDetailsExplored.synonyms,
           };
-          const newFullDetail: FullWord = {
-            ...bareWord,
-            definition: apiDetailsExplored.definition,
-            exampleSentence: apiDetailsExplored.exampleSentence,
-            synonyms: apiDetailsExplored.synonyms || [],
-            antonyms: apiDetailsExplored.antonyms || [],
-            synonymNuances: apiDetailsExplored.synonymNuances || '',
-            mnemonic: apiDetailsExplored.mnemonic || '',
-          }
+
           // Update cache with extended details
           setWordDetailsCache(prevCache => {
             const updatedCache = { ...prevCache, [wordId]: newDetail };
             // Trigger saveProgress with the main learnedWords state and the new cache entry
-            // This call uses the main 'learnedWords' state variable from the provider's scope.
             saveProgress(learnedWords, { [wordId]: newDetail });
             return updatedCache;
           });
@@ -247,7 +267,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     }
     const fallbackDetail: WordDetail = { definition: "Could not load definition (fallback).", exampleSentence: "Could not load example (fallback)." };
     return { ...bareWord, ...fallbackDetail, synonyms: [], synonymNuances: '', mnemonic: '', antonyms: [] };
-  }, [getBareWordById, wordDetailsCache, saveProgress, learnedWords]);
+  }, [getBareWordById, wordDetailsCache, saveProgress, learnedWords, language, modelId]);
 
 
   const getDetailsForWordBatch = useCallback(async (wordIds: string[]): Promise<Record<string, WordDetail>> => {
@@ -279,7 +299,6 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
         errorDetailsToCache[id] = errorDetail; // Prepare for caching
       });
       if (Object.keys(errorDetailsToCache).length > 0) {
-        // Use the main learnedWords state here
         saveProgress(learnedWords, errorDetailsToCache);
       }
       return results;
@@ -290,26 +309,24 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
       try {
         // Await the existing promise
         const inflightResultsByText = await batchRequestInFlightRef.current;
-        // The in-flight promise resolves to Record<string(text), WordDetail> based on current design.
-        // We need to map these back to IDs.
+        // The in-flight promise resolves to Record<string(text), WordDetail>
         for (const textKey in inflightResultsByText) {
-          const wordId = wordIdToTextMap[textKey]; // Get ID from text
+          const wordId = wordIdToTextMap[textKey];
           if (wordId && !results[wordId] && inflightResultsByText[textKey]) {
             results[wordId] = inflightResultsByText[textKey];
           }
         }
-        // Fill any remaining from cache that weren't part of the in-flight call's scope
+        // Fill any remaining from cache
         for (const id of wordIds) {
           if (!results[id] && wordDetailsCache[id]) {
             results[id] = wordDetailsCache[id];
           }
         }
-
       } catch (e) {
         console.error("Error awaiting in-flight batch request:", e);
-        wordsToFetchTexts.forEach(text => { // These are the words the *current* call intended to fetch
+        wordsToFetchTexts.forEach(text => {
           const id = wordIdToTextMap[text];
-          if (id && !results[id]) { // If not already resolved by in-flight or cache
+          if (id && !results[id]) {
             results[id] = { definition: "Error awaiting previous batch.", exampleSentence: "Please try again." };
           }
         });
@@ -317,14 +334,14 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
       return results;
     }
 
-    const currentBatchPromiseBuilder = async (): Promise<Record<string, WordDetail>> => { // This promise should resolve to Record<string(ID), WordDetail>
-      const rawBatchDetailsByText = await fetchMultipleWordDetails(wordsToFetchTexts, language); // API returns Record<string(text), WordDetailsResponseItem>
+    const currentBatchPromiseBuilder = async (): Promise<Record<string, WordDetail>> => {
+      const rawBatchDetailsByText = await fetchMultipleWordDetails(wordsToFetchTexts, language, modelId);
       const transformedDetailsById: Record<string, WordDetail> = {};
       for (const wordText in rawBatchDetailsByText) {
         if (Object.prototype.hasOwnProperty.call(rawBatchDetailsByText, wordText)) {
-          const wordId = wordIdToTextMap[wordText]; // Map text back to ID
-          if (wordId) { // Ensure we have an ID for this text
-            transformedDetailsById[wordId] = { // Store by ID
+          const wordId = wordIdToTextMap[wordText];
+          if (wordId) {
+            transformedDetailsById[wordId] = {
               definition: rawBatchDetailsByText[wordText].definition,
               exampleSentence: rawBatchDetailsByText[wordText].example_sentence,
               synonymNuances: rawBatchDetailsByText[wordText].synonymNuances,
@@ -334,10 +351,10 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
           }
         }
       }
-      // Ensure all originally requested words (by ID) that were sent to API have an entry, even if API didn't return them
+      // Ensure all originally requested words have an entry
       wordsToFetchTexts.forEach(text => {
         const id = wordIdToTextMap[text];
-        if (id && !transformedDetailsById[id]) { // If an ID'd word wasn't in the response
+        if (id && !transformedDetailsById[id]) {
           transformedDetailsById[id] = {
             definition: "Details not returned by API for this word.",
             exampleSentence: "Example not returned by API for this word."
@@ -348,42 +365,39 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
     };
 
     const currentBatchPromise = currentBatchPromiseBuilder();
-    batchRequestInFlightRef.current = currentBatchPromise; // Store the promise that resolves to Record<string(ID), WordDetail>
+    batchRequestInFlightRef.current = currentBatchPromise;
 
     try {
-      const fetchedBatchDetailsById = await currentBatchPromise; // This is Record<string(ID), WordDetail>
+      const fetchedBatchDetailsById = await currentBatchPromise;
       const newCacheEntries: Record<string, WordDetail> = {};
-      for (const wordId in fetchedBatchDetailsById) { // Iterate by ID
+      for (const wordId in fetchedBatchDetailsById) {
         if (Object.prototype.hasOwnProperty.call(fetchedBatchDetailsById, wordId)) {
-          results[wordId] = fetchedBatchDetailsById[wordId]; // Populate results by ID
-          newCacheEntries[wordId] = fetchedBatchDetailsById[wordId]; // Prepare cache entries by ID
+          results[wordId] = fetchedBatchDetailsById[wordId];
+          newCacheEntries[wordId] = fetchedBatchDetailsById[wordId];
         }
       }
       if (Object.keys(newCacheEntries).length > 0) {
-        // Use the main learnedWords state here
         saveProgress(learnedWords, newCacheEntries);
       }
     } catch (error) {
       console.error("Error processing batch details:", error);
       const errorCacheEntries: Record<string, WordDetail> = {};
-      // Populate results and cache for words that were intended for THIS batch fetch
       wordsToFetchTexts.forEach(text => {
         const id = wordIdToTextMap[text];
-        if (id && !results[id]) { // If not already in results (e.g. from cache check earlier)
+        if (id && !results[id]) {
           const errorDetail = { definition: "Error in batch fetch.", exampleSentence: "Please try again." };
           results[id] = errorDetail;
           errorCacheEntries[id] = errorDetail;
         }
       });
       if (Object.keys(errorCacheEntries).length > 0) {
-        // Use the main learnedWords state here
         saveProgress(learnedWords, errorCacheEntries);
       }
     } finally {
       batchRequestInFlightRef.current = null;
     }
-    return results; // Should be Record<string(ID), WordDetail>
-  }, [getBareWordById, wordDetailsCache, saveProgress, learnedWords]);
+    return results;
+  }, [getBareWordById, wordDetailsCache, saveProgress, learnedWords, language, modelId]);
 
   const wordsToLearn = allWordsState.filter(word => !learnedWords[word.id] || learnedWords[word.id].status === WordStatus.NEW);
 
@@ -467,12 +481,12 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
   }, [learnedWords]);
 
 
-  // Wrap evaluateUserExplanation to inject language parameter
+  // Wrap evaluateUserExplanation to inject language and modelId parameter
   const evaluateUserExplanationWithLanguage = useCallback(
     (word: string, definition: string, exampleSentence: string, userExplanation: string) => {
-      return evaluateUserExplanationAPI(word, definition, exampleSentence, userExplanation, language);
+      return evaluateUserExplanationAPI(word, definition, exampleSentence, userExplanation, language, modelId);
     },
-    [language]
+    [language, modelId]
   );
 
   const value: VocabularyContextType = {

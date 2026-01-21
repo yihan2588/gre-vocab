@@ -1510,6 +1510,7 @@ export const EBBINGHAUS_INTERVALS_DAYS: number[] = [0, 1, 3, 7, 14, 30, 60];
 
 export const LOCAL_STORAGE_KEY = 'greVocabularyProgress';
 
-export const GEMINI_MODEL_TEXT = "deepseek/deepseek-v3.2-exp"; // User requested flash preview via OpenRouter
+export const GEMINI_MODEL_TEXT = "google/gemini-3-flash-preview"; // User requested flash preview via OpenRouter
+export const QWEN_MODEL_ID = "qwen/qwen3-max"; // User requested qwen3-max
 
 export const LEARN_BATCH_SIZE = 30; // Max words per learning session

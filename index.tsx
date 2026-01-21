@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { VocabularyProvider } from './contexts/VocabularyContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { ModelProvider } from './contexts/ModelContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
@@ -15,9 +16,11 @@ root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <LanguageProvider>
-        <VocabularyProvider>
-          <App />
-        </VocabularyProvider>
+        <ModelProvider>
+          <VocabularyProvider>
+            <App />
+          </VocabularyProvider>
+        </ModelProvider>
       </LanguageProvider>
     </ErrorBoundary>
   </React.StrictMode>
