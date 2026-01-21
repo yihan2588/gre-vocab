@@ -53,6 +53,8 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
 
   // Effect to load words into the session (snapshot)
   useEffect(() => {
+    // If already initialized, DO NOT touch sessionWords or currentIndex based on global state changes.
+    // This ensures that when recordReviewOutcome updates 'wordsToReview', this effect ignores it.
     if (isSessionInitialized) return;
 
     if (isPracticeMode && practiceWordId) {
@@ -62,7 +64,8 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
         setIsSessionInitialized(true);
       }
     } else if (wordsToReview.length > 0) {
-      setSessionWords(wordsToReview); // Snapshot current review list
+      // Create a local copy to ensure stability
+      setSessionWords([...wordsToReview]);
       setIsSessionInitialized(true);
     }
   }, [wordsToReview, practiceWordId, isPracticeMode, getBareWordById, isSessionInitialized]);
