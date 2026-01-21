@@ -38,6 +38,7 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
   const [allWordsState] = useState<BareWord[]>(INITIAL_GRE_WORDS.map(w => ({ id: w.id, text: w.text })));
   const [learnedWords, setLearnedWords] = useState<Record<string, LearnedWordEntry>>({});
   const [wordDetailsCache, setWordDetailsCache] = useState<Record<string, WordDetail>>({});
+  const previousLanguageRef = useRef<string>(language);
 
   const requestsInFlightRef = useRef<Record<string, Promise<WordDetail | null>>>({});
   const batchRequestInFlightRef = useRef<Promise<Record<string, WordDetail>> | null>(null);
@@ -83,6 +84,30 @@ export const VocabularyProvider: React.FC<{ children: ReactNode }> = ({ children
       }
     }
   }, []);
+
+  // Effect to clear cache when language changes
+  useEffect(() => {
+    if (previousLanguageRef.current !== language) {
+      console.log(`Language changed from ${previousLanguageRef.current} to ${language}. Clearing word details cache.`);
+      
+      // Clear the cache
+      setWordDetailsCache({});
+      
+      // Cancel any in-flight requests
+      requestsInFlightRef.current = {};
+      batchRequestInFlightRef.current = null;
+      
+      // Update localStorage without the cache
+      const dataToStore = {
+        learnedWords: learnedWords,
+        wordDetailsCache: {},
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToStore));
+      
+      // Update the ref to the new language
+      previousLanguageRef.current = language;
+    }
+  }, [language, learnedWords]);
 
   const saveProgress = useCallback((
     updatedLearnedWords: Record<string, LearnedWordEntry>,

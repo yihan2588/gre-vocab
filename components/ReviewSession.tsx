@@ -45,6 +45,19 @@ const ReviewSession: React.FC<ReviewSessionProps> = ({ setView, practiceWordId }
   // Effect to initialize or reset the session when wordsToReview, practiceWordId, or mode changes
   const [isSessionInitialized, setIsSessionInitialized] = useState(false);
 
+  // Effect to reset session when language changes
+  useEffect(() => {
+    if (isSessionInitialized) {
+      console.log('Language changed during review session. Resetting session.');
+      setIsSessionInitialized(false);
+      setSessionWords([]);
+      setCurrentIndex(0);
+      setEvaluationResult(null);
+      setUserExplanation('');
+      setCurrentFullWord(null);
+    }
+  }, [language]); // Only trigger on language change
+
   // Effect to reset session when switching modes
   useEffect(() => {
     setIsSessionInitialized(false);

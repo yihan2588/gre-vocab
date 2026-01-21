@@ -22,6 +22,17 @@ const LearnSession: React.FC<LearnSessionProps> = ({ setView }) => {
   const [isLoadingBatchDetails, setIsLoadingBatchDetails] = useState(false);
   const [isSessionInitialized, setIsSessionInitialized] = useState(false);
 
+  // Effect to reset session when language changes
+  useEffect(() => {
+    if (isSessionInitialized) {
+      console.log('Language changed during learning session. Resetting session.');
+      setIsSessionInitialized(false);
+      setSessionWords([]);
+      setDetailsForSessionWords({});
+      setCurrentIndex(0);
+    }
+  }, [language]); // Only trigger on language change
+
   useEffect(() => {
     if (!isSessionInitialized && wordsToLearn.length > 0) {
       const newSessionWords = wordsToLearn.slice(0, Math.min(LEARN_BATCH_SIZE, wordsToLearn.length));

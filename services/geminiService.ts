@@ -54,24 +54,32 @@ export async function fetchWordDetails(word: string, language: Language = 'en'):
 
   const prompt = language === 'zh' 
     ? `
+    IMPORTANT: Generate ALL content in SIMPLIFIED CHINESE (简体中文) ONLY, except for the synonyms which must be English words.
+
     对于单词 "${word}"，请用简体中文提供以下信息（以JSON格式）：
     1. 单词本身（键："word"）。
-    2. 简明的定义（键："definition"），用简体中文。
-    3. 使用该单词的例句（键："example_sentence"），用简体中文。
-    4. 2-3个常用同义词列表（键："synonyms"，字符串数组），同义词必须是英文单词。
-    5. 用简体中文简要解释这些同义词之间的细微差别和相似之处，以及何时使用哪个（键："synonymNuances"）。
-    6. 一个简短的笑话或趣味知识来帮助记忆这个单词（键："mnemonic"），用简体中文。
+    2. 简明的定义（键："definition"），**必须用简体中文**。
+    3. 使用该单词的例句（键："example_sentence"），**必须用简体中文**。
+    4. 2-3个常用同义词列表（键："synonyms"，字符串数组），**同义词必须是英文单词**。
+    5. 用简体中文简要解释这些同义词之间的细微差别和相似之处，以及何时使用哪个（键："synonymNuances"），**必须用简体中文**。
+    6. 一个简短的笑话或趣味知识来帮助记忆这个单词（键："mnemonic"），**必须用简体中文**。
+
+    **重要提醒：除了synonyms字段中的同义词必须是英文单词外，其他所有内容（definition、example_sentence、synonymNuances、mnemonic）都必须用简体中文生成。**
 
     确保输出是单个JSON对象。如果找不到信息，提供空字符串或空数组，而不是省略键。
   `
     : `
+    IMPORTANT: Generate ALL content in ENGLISH ONLY.
+
     For the word "${word}", provide the following information in JSON format:
     1. The word itself (key: "word").
-    2. A concise definition (key: "definition").
-    3. An example sentence using the word (key: "example_sentence").
-    4. A list of 2-3 common synonyms if applicable (key: "synonyms", array of strings).
-    5. A brief explanation of the nuanced similarity and differences between these synonyms, and when to use which (key: "synonymNuances").
-    6. A short joke or fun fact to help memorizing this word (key: "mnemonic").
+    2. A concise definition (key: "definition") in English.
+    3. An example sentence using the word (key: "example_sentence") in English.
+    4. A list of 2-3 common synonyms if applicable (key: "synonyms", array of English words).
+    5. A brief explanation of the nuanced similarity and differences between these synonyms, and when to use which (key: "synonymNuances") in English.
+    6. A short joke or fun fact to help memorizing this word (key: "mnemonic") in English.
+
+    **REMINDER: ALL content must be generated in English.**
 
     Ensure the output is a single JSON object. If you cannot find information, provide empty strings for values or empty arrays for lists, rather than omitting keys.
   `;
@@ -159,13 +167,17 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
 
   const prompt = language === 'zh'
     ? `
+    IMPORTANT: Generate ALL content in SIMPLIFIED CHINESE (简体中文) ONLY, except for the synonyms which must be English words.
+
     对于以下列表中的每个单词，请用简体中文提供包含其定义、例句、同义词、同义词细微差别指南和记忆技巧（笑话/趣味知识）的JSON对象。
     主响应应该是单个JSON对象，其中每个键是一个输入单词，其值是具有以下键的对象：
-    - "definition"（用简体中文）
-    - "example_sentence"（用简体中文）
-    - "synonyms"（字符串数组，必须是英文单词）
-    - "synonymNuances"（字符串，用简体中文解释差异/用法）
-    - "mnemonic"（字符串，笑话或趣味知识来帮助记忆，用简体中文）
+    - "definition"（**必须用简体中文**）
+    - "example_sentence"（**必须用简体中文**）
+    - "synonyms"（字符串数组，**必须是英文单词**）
+    - "synonymNuances"（字符串，**必须用简体中文**解释差异/用法）
+    - "mnemonic"（字符串，笑话或趣味知识来帮助记忆，**必须用简体中文**）
+
+    **重要提醒：除了synonyms字段必须是英文单词外，其他所有内容都必须用简体中文生成。**
 
     如果找不到特定单词的信息，请提供标准占位符。
     
@@ -173,13 +185,17 @@ export async function fetchMultipleWordDetails(words: string[], language: Langua
     ${JSON.stringify(words)}
   `
     : `
+    IMPORTANT: Generate ALL content in ENGLISH ONLY.
+
     For each word in the following list, provide a JSON object containing its definition, example sentence, synonyms, a nuance guide for synonyms, and a mnemonic (joke/fun fact).
     The main response should be a single JSON object where each key is one of the input words, and its value is an object with the following keys: 
-    - "definition"
-    - "example_sentence"
-    - "synonyms" (array of strings, just the words)
-    - "synonymNuances" (string, explaining differences/usage)
-    - "mnemonic" (string, a joke or fun fact to help remember)
+    - "definition" (in English)
+    - "example_sentence" (in English)
+    - "synonyms" (array of English words)
+    - "synonymNuances" (string, explaining differences/usage in English)
+    - "mnemonic" (string, a joke or fun fact to help remember in English)
+
+    **REMINDER: ALL content must be generated in English.**
 
     If you cannot find information for a specific word, provide standard placeholders.
     
@@ -271,6 +287,8 @@ export async function evaluateUserExplanation(word: string, definition: string, 
 
   const prompt = language === 'zh'
     ? `
+    IMPORTANT: Generate ALL feedback content in SIMPLIFIED CHINESE (简体中文) ONLY.
+
     目标单词是 "${word}"。
     其定义是："${definition}"
     一个例句是："${exampleSentence}"
@@ -281,14 +299,18 @@ export async function evaluateUserExplanation(word: string, definition: string, 
     
     以JSON格式响应，包含以下键：
     - "is_correct": 布尔值
-    - "feedback": 字符串（简要解释，用简体中文）
+    - "feedback": 字符串（简要解释，**必须用简体中文**）
     - "confidence": 数字（可选，0.0-1.0）
-    - "synonymNuances": 字符串（用简体中文解释同义词之间的细微差别和相似之处，以及何时使用哪个。始终提供此项，即使答案正确也要帮助有效学习，尤其是答案错误时。）
-    - "mnemonic": 字符串（笑话或趣味知识来帮助记忆这个单词，用简体中文。始终提供此项。）
+    - "synonymNuances": 字符串（**必须用简体中文**解释同义词之间的细微差别和相似之处，以及何时使用哪个。始终提供此项，即使答案正确也要帮助有效学习，尤其是答案错误时。）
+    - "mnemonic": 字符串（笑话或趣味知识来帮助记忆这个单词，**必须用简体中文**。始终提供此项。）
+
+    **重要提醒：所有反馈内容（feedback、synonymNuances、mnemonic）都必须用简体中文生成。**
 
     专注于核心含义和适当用法。
   `
     : `
+    IMPORTANT: Generate ALL feedback content in ENGLISH ONLY.
+
     The target word is "${word}".
     Its definition is: "${definition}"
     An example sentence is: "${exampleSentence}"
@@ -299,10 +321,12 @@ export async function evaluateUserExplanation(word: string, definition: string, 
     
     Respond in JSON format with the following keys:
     - "is_correct": boolean
-    - "feedback": string (brief explanation)
+    - "feedback": string (brief explanation in English)
     - "confidence": number (optional, 0.0-1.0)
-    - "synonymNuances": string (Explain the nuanced similarity and differences between synonyms, and when to use which. Provide this ALWAYS, to help valid learning even if correct, but especially if incorrect.)
-    - "mnemonic": string (A joke or fun fact to help memorizing this word. Provide this ALWAYS.)
+    - "synonymNuances": string (Explain the nuanced similarity and differences between synonyms, and when to use which in English. Provide this ALWAYS, to help valid learning even if correct, but especially if incorrect.)
+    - "mnemonic": string (A joke or fun fact to help memorizing this word in English. Provide this ALWAYS.)
+
+    **REMINDER: ALL feedback content must be generated in English.**
 
     Focus on the core meaning and appropriate usage.
   `;
