@@ -1505,7 +1505,8 @@ export const INITIAL_GRE_WORDS: Pick<Word, 'id' | 'text'>[] = [
 ];
 
 // Ebbinghaus forgetting curve intervals in days
-export const EBBINGHAUS_INTERVALS_DAYS: number[] = [1, 2, 4, 8, 16, 32, 64];
+// Ebbinghaus forgetting curve intervals in days
+export const EBBINGHAUS_INTERVALS_DAYS: number[] = [0, 1, 3, 7, 14, 30, 60];
 
 export const LOCAL_STORAGE_KEY = 'greVocabularyProgress';
 
